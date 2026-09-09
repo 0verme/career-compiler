@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/storage" },
+    { "path": "packages/source-github" },
+    { "path": "packages/source-local-git" },
+    { "path": "packages/source-chat" },
+    { "path": "packages/renderer-resume" },
+    { "path": "packages/renderer-github-profile" },
+    { "path": "apps/cli" },
+    { "path": "scripts" },
+    { "path": "tests" }
+  ]
+}

@@ -1,0 +1,440 @@
+{
+  "kind": "career-ir",
+  "schemaVersion": "0.1",
+  "exportedAt": "2025-01-15T00:00:00.000Z",
+  "profile": {
+    "id": "alice",
+    "displayName": "Alice Example",
+    "headline": "Data platform leader building dependable lineage systems",
+    "about": "I build data platforms and turn complex system landscapes into reliable, explainable products.",
+    "experiences": [
+      {
+        "id": "experience_1fc9019d",
+        "role": "Data platform team leadership",
+        "summary": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+        "factIds": [
+          "fact_1fc9019d"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "chat:conversation:conversation:alice-lineage-leadership",
+            "relation": "derived-from",
+            "weight": 0.86
+          }
+        ]
+      }
+    ],
+    "projects": [
+      {
+        "id": "project_e481dfc3",
+        "name": "data-lineage-toolkit",
+        "summary": "Open lineage platform for dependable data operations.",
+        "url": "https://github.com/alice/data-lineage-toolkit",
+        "repositoryUrl": "https://github.com/alice/data-lineage-toolkit",
+        "skills": [
+          "data-lineage",
+          "data-platform",
+          "lakehouse",
+          "TypeScript",
+          "Python"
+        ],
+        "factIds": [
+          "fact_e481dfc3"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
+      }
+    ],
+    "skills": [
+      {
+        "id": "skill_69dfd76d",
+        "name": "data-lineage",
+        "factIds": [
+          "fact_e481dfc3"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "skill_b818ed73",
+        "name": "data-platform",
+        "factIds": [
+          "fact_e481dfc3"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "skill_f37e129e",
+        "name": "lakehouse",
+        "factIds": [
+          "fact_e481dfc3"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "skill_0fceff97",
+        "name": "Python",
+        "factIds": [
+          "fact_e481dfc3"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "skill_19862fe2",
+        "name": "TypeScript",
+        "factIds": [
+          "fact_e481dfc3"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
+      }
+    ],
+    "achievements": [
+      {
+        "id": "achievement_b158c8c1",
+        "statement": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+        "metric": "80+ upstream systems",
+        "factIds": [
+          "fact_b158c8c1"
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "chat:conversation:conversation:alice-lineage-leadership",
+            "relation": "derived-from",
+            "weight": 0.84
+          }
+        ]
+      }
+    ],
+    "generatedAt": "2025-01-15T00:00:00.000Z"
+  },
+  "facts": [
+    {
+      "id": "fact_b158c8c1",
+      "type": "achievement",
+      "statement": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+      "normalizedData": {
+        "upstreamSystems": 80,
+        "metric": "80+ upstream systems"
+      },
+      "status": "confirmed",
+      "confidence": 0.84,
+      "evidenceRefs": [
+        {
+          "evidenceId": "chat:conversation:conversation:alice-lineage-leadership",
+          "relation": "derived-from",
+          "weight": 0.84
+        }
+      ],
+      "canonicalKey": "achievement:systems:80:na",
+      "createdAt": "2025-01-15T00:00:00.000Z",
+      "updatedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedBy": "synthetic-fixture-confirmation"
+    },
+    {
+      "id": "fact_1fc9019d",
+      "type": "experience",
+      "statement": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+      "normalizedData": {
+        "role": "Data platform team leadership",
+        "teamSize": 12,
+        "domain": "data platform"
+      },
+      "status": "confirmed",
+      "confidence": 0.86,
+      "evidenceRefs": [
+        {
+          "evidenceId": "chat:conversation:conversation:alice-lineage-leadership",
+          "relation": "derived-from",
+          "weight": 0.86
+        }
+      ],
+      "canonicalKey": "experience:team-leadership:12",
+      "createdAt": "2025-01-15T00:00:00.000Z",
+      "updatedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedBy": "synthetic-fixture-confirmation"
+    },
+    {
+      "id": "fact_e481dfc3",
+      "type": "project",
+      "statement": "Built data-lineage-toolkit: Open lineage platform for dependable data operations.",
+      "normalizedData": {
+        "name": "data-lineage-toolkit",
+        "summary": "Open lineage platform for dependable data operations.",
+        "repositoryUrl": "https://github.com/alice/data-lineage-toolkit",
+        "url": "https://github.com/alice/data-lineage-toolkit",
+        "skills": [
+          "data-lineage",
+          "data-platform",
+          "lakehouse",
+          "TypeScript",
+          "Python"
+        ]
+      },
+      "status": "confirmed",
+      "confidence": 0.72,
+      "evidenceRefs": [
+        {
+          "evidenceId": "github:repository:alice/data-lineage-toolkit",
+          "relation": "supports",
+          "weight": 1
+        },
+        {
+          "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+          "relation": "supports",
+          "weight": 1
+        }
+      ],
+      "canonicalKey": "project:data-lineage-toolkit",
+      "createdAt": "2025-01-15T00:00:00.000Z",
+      "updatedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedBy": "synthetic-fixture-confirmation"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "github:repository:alice/data-lineage-toolkit",
+      "sourceType": "github",
+      "sourceId": "alice/data-lineage-toolkit",
+      "evidenceType": "repository",
+      "raw": {
+        "owner": "alice",
+        "name": "data-lineage-toolkit",
+        "description": "Open lineage platform for dependable data operations.",
+        "htmlUrl": "https://github.com/alice/data-lineage-toolkit",
+        "defaultBranch": "main",
+        "topics": [
+          "data-lineage",
+          "data-platform",
+          "lakehouse"
+        ],
+        "languages": [
+          "TypeScript",
+          "Python"
+        ]
+      },
+      "normalized": {
+        "canonicalName": "data-lineage-toolkit",
+        "name": "data-lineage-toolkit",
+        "description": "Open lineage platform for dependable data operations.",
+        "repositoryUrl": "https://github.com/alice/data-lineage-toolkit",
+        "topics": [
+          "data-lineage",
+          "data-platform",
+          "lakehouse"
+        ],
+        "languages": [
+          "TypeScript",
+          "Python"
+        ],
+        "defaultBranch": "main"
+      },
+      "sourceUri": "https://github.com/alice/data-lineage-toolkit",
+      "observedAt": "2025-01-14T12:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "github:commit:alice/data-lineage-toolkit:abc1234",
+      "sourceType": "github",
+      "sourceId": "alice/data-lineage-toolkit:abc1234",
+      "evidenceType": "commit",
+      "raw": {
+        "sha": "abc1234",
+        "message": "Document lineage ingestion boundaries",
+        "author": "Alice Example",
+        "date": "2025-01-13T09:00:00.000Z",
+        "htmlUrl": "https://github.com/alice/data-lineage-toolkit/commit/abc1234"
+      },
+      "normalized": {
+        "repository": "alice/data-lineage-toolkit",
+        "sha": "abc1234",
+        "summary": "Document lineage ingestion boundaries",
+        "author": "Alice Example"
+      },
+      "sourceUri": "https://github.com/alice/data-lineage-toolkit/commit/abc1234",
+      "observedAt": "2025-01-13T09:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "github:issue:alice/data-lineage-toolkit:issue:18",
+      "sourceType": "github",
+      "sourceId": "alice/data-lineage-toolkit:issue:18",
+      "evidenceType": "issue",
+      "raw": {
+        "number": 18,
+        "title": "Define upstream ownership metadata",
+        "state": "closed",
+        "htmlUrl": "https://github.com/alice/data-lineage-toolkit/issues/18"
+      },
+      "normalized": {
+        "repository": "alice/data-lineage-toolkit",
+        "number": 18,
+        "title": "Define upstream ownership metadata",
+        "state": "closed"
+      },
+      "sourceUri": "https://github.com/alice/data-lineage-toolkit/issues/18",
+      "observedAt": "2025-01-12T09:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+      "sourceType": "github",
+      "sourceId": "alice/data-lineage-toolkit:pull-request:27",
+      "evidenceType": "pull-request",
+      "raw": {
+        "number": 27,
+        "title": "Add source ownership graph",
+        "state": "closed",
+        "merged": true,
+        "htmlUrl": "https://github.com/alice/data-lineage-toolkit/pull/27"
+      },
+      "normalized": {
+        "repository": "alice/data-lineage-toolkit",
+        "number": 27,
+        "title": "Add source ownership graph",
+        "state": "closed",
+        "merged": true
+      },
+      "sourceUri": "https://github.com/alice/data-lineage-toolkit/pull/27",
+      "observedAt": "2025-01-14T10:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+      "sourceType": "local-git",
+      "sourceId": "data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+      "evidenceType": "local-repository",
+      "raw": {
+        "path": "C:/Users/alice/work/data-lineage-toolkit",
+        "name": "data-lineage-toolkit",
+        "remote": "git@github.com:alice/data-lineage-toolkit.git",
+        "currentBranch": "main",
+        "firstActivity": "2024-02-01T08:00:00.000Z",
+        "lastActivity": "2025-01-14T12:00:00.000Z",
+        "contributors": [
+          "Alice Example",
+          "Bob Example"
+        ],
+        "languages": [
+          "Python",
+          "TypeScript"
+        ],
+        "tags": [
+          "v1.0.0"
+        ]
+      },
+      "normalized": {
+        "canonicalName": "data-lineage-toolkit",
+        "name": "data-lineage-toolkit",
+        "description": "Local repository metadata corroborating the lineage platform project.",
+        "repositoryUrl": "https://github.com/alice/data-lineage-toolkit",
+        "remote": "git@github.com:alice/data-lineage-toolkit.git",
+        "currentBranch": "main",
+        "firstActivity": "2024-02-01T08:00:00.000Z",
+        "lastActivity": "2025-01-14T12:00:00.000Z",
+        "contributors": [
+          "Alice Example",
+          "Bob Example"
+        ],
+        "languages": [
+          "Python",
+          "TypeScript"
+        ],
+        "tags": [
+          "v1.0.0"
+        ],
+        "localPath": "C:/Users/alice/work/data-lineage-toolkit",
+        "skills": [
+          "Python",
+          "TypeScript"
+        ]
+      },
+      "sourceUri": "https://github.com/alice/data-lineage-toolkit",
+      "observedAt": "2025-01-14T12:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "chat:conversation:conversation:alice-lineage-leadership",
+      "sourceType": "chat",
+      "sourceId": "conversation:alice-lineage-leadership",
+      "evidenceType": "conversation",
+      "raw": {
+        "text": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+        "conversationId": "alice-lineage-leadership"
+      },
+      "normalized": {
+        "text": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+        "conversationId": "alice-lineage-leadership"
+      },
+      "observedAt": "2025-01-10T12:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "content_b37bd803"
+    }
+  ]
+}

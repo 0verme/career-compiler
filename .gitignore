@@ -1,0 +1,29 @@
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+.vitest/
+
+# Local Career Compiler databases and configuration
+.career-compiler/
+career-compiler.config.json
+
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials/
+secrets/
+
+# Editors and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log

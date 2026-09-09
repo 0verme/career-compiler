@@ -1,0 +1,17 @@
+{
+  "name": "@career-compiler/source-chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Manual and chat evidence source with replaceable fact extraction adapters.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@career-compiler/core": "workspace:*"
+  },
+  "files": ["dist", "README.md"]
+}

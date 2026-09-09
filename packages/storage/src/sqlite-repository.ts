@@ -1,0 +1,397 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import type {
+  CareerEvidence,
+  CareerFact,
+  CareerFactStatus,
+  CareerIR,
+  CareerRepository,
+  JsonObject,
+  SourceType
+} from '@career-compiler/core';
+import {
+  parseCareerIR,
+  serializeCareerIR,
+  validateCareerEvidence,
+  validateCareerFact,
+  validateCareerIR
+} from '@career-compiler/core';
+
+export interface SQLiteCareerRepositoryOptions {
+  filePath: string;
+}
+
+type SQLiteRow = Record<string, unknown>;
+
+function rowString(row: SQLiteRow, key: string): string {
+  const value = row[key];
+  if (typeof value !== 'string') {
+    throw new Error(`SQLite row field ${key} is not a string`);
+  }
+  return value;
+}
+
+function rowNullableString(row: SQLiteRow, key: string): string | undefined {
+  const value = row[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function parseJsonObject(serialized: string, field: string): JsonObject {
+  let value: unknown;
+  try {
+    value = JSON.parse(serialized) as unknown;
+  } catch (error) {
+    throw new Error(
+      `Stored ${field} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`Stored ${field} must be a JSON object`);
+  }
+  return value as JsonObject;
+}
+
+function parseEvidence(row: SQLiteRow): CareerEvidence {
+  return validateCareerEvidence({
+    id: rowString(row, 'id'),
+    sourceType: rowString(row, 'source_type'),
+    sourceId: rowString(row, 'source_id'),
+    evidenceType: rowString(row, 'evidence_type'),
+    raw: parseJsonObject(rowString(row, 'raw_json'), 'evidence.raw'),
+    normalized: parseJsonObject(rowString(row, 'normalized_json'), 'evidence.normalized'),
+    ...(rowNullableString(row, 'source_uri') ? { sourceUri: rowNullableString(row, 'source_uri') } : {}),
+    ...(rowNullableString(row, 'observed_at') ? { observedAt: rowNullableString(row, 'observed_at') } : {}),
+    discoveredAt: rowString(row, 'discovered_at'),
+    ...(rowNullableString(row, 'content_hash')
+      ? { contentHash: rowNullableString(row, 'content_hash') }
+      : {})
+  });
+}
+
+function parseFact(row: SQLiteRow, refs: SQLiteRow[]): CareerFact {
+  return validateCareerFact({
+    id: rowString(row, 'id'),
+    type: rowString(row, 'type'),
+    statement: rowString(row, 'statement'),
+    normalizedData: parseJsonObject(rowString(row, 'normalized_data_json'), 'fact.normalizedData'),
+    status: rowString(row, 'status'),
+    confidence: Number(row.confidence),
+    evidenceRefs: refs.map((ref) => ({
+      evidenceId: rowString(ref, 'evidence_id'),
+      relation: rowString(ref, 'relation') as CareerFact['evidenceRefs'][number]['relation'],
+      ...(ref.weight === null || ref.weight === undefined ? {} : { weight: Number(ref.weight) })
+    })),
+    ...(rowNullableString(row, 'canonical_key')
+      ? { canonicalKey: rowNullableString(row, 'canonical_key') }
+      : {}),
+    createdAt: rowString(row, 'created_at'),
+    updatedAt: rowString(row, 'updated_at'),
+    ...(rowNullableString(row, 'confirmed_at')
+      ? { confirmedAt: rowNullableString(row, 'confirmed_at') }
+      : {}),
+    ...(rowNullableString(row, 'confirmed_by')
+      ? { confirmedBy: rowNullableString(row, 'confirmed_by') }
+      : {}),
+    ...(rowNullableString(row, 'supersedes_fact_id')
+      ? { supersedesFactId: rowNullableString(row, 'supersedes_fact_id') }
+      : {})
+  });
+}
+
+export class SQLiteCareerRepository implements CareerRepository {
+  private readonly database: DatabaseSync;
+
+  constructor(options: SQLiteCareerRepositoryOptions) {
+    mkdirSync(dirname(options.filePath), { recursive: true });
+    this.database = new DatabaseSync(options.filePath);
+    this.database.exec('PRAGMA foreign_keys = ON;');
+    this.database.exec(`
+      CREATE TABLE IF NOT EXISTS schema_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('schema_version', '0.1');
+
+      CREATE TABLE IF NOT EXISTS evidence (
+        id TEXT PRIMARY KEY,
+        source_type TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        evidence_type TEXT NOT NULL,
+        raw_json TEXT NOT NULL,
+        normalized_json TEXT NOT NULL,
+        source_uri TEXT,
+        observed_at TEXT,
+        discovered_at TEXT NOT NULL,
+        content_hash TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_evidence_source_type ON evidence(source_type);
+      CREATE INDEX IF NOT EXISTS idx_evidence_source_id ON evidence(source_id);
+
+      CREATE TABLE IF NOT EXISTS facts (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        statement TEXT NOT NULL,
+        normalized_data_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        confidence REAL NOT NULL,
+        canonical_key TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        confirmed_at TEXT,
+        confirmed_by TEXT,
+        supersedes_fact_id TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_facts_status ON facts(status);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_facts_canonical_key
+        ON facts(canonical_key) WHERE canonical_key IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS fact_evidence (
+        fact_id TEXT NOT NULL REFERENCES facts(id) ON DELETE CASCADE,
+        evidence_id TEXT NOT NULL REFERENCES evidence(id) ON DELETE RESTRICT,
+        relation TEXT NOT NULL,
+        weight REAL,
+        PRIMARY KEY (fact_id, evidence_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS profiles (
+        profile_id TEXT PRIMARY KEY,
+        schema_version TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+  }
+
+  private transaction<T>(operation: () => T): T {
+    this.database.exec('BEGIN IMMEDIATE;');
+    try {
+      const result = operation();
+      this.database.exec('COMMIT;');
+      return result;
+    } catch (error) {
+      this.database.exec('ROLLBACK;');
+      throw error;
+    }
+  }
+
+  private writeEvidence(evidence: CareerEvidence): void {
+    const validated = validateCareerEvidence(evidence);
+    this.database
+      .prepare(`
+        INSERT INTO evidence
+          (id, source_type, source_id, evidence_type, raw_json, normalized_json,
+           source_uri, observed_at, discovered_at, content_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          source_type = excluded.source_type,
+          source_id = excluded.source_id,
+          evidence_type = excluded.evidence_type,
+          raw_json = excluded.raw_json,
+          normalized_json = excluded.normalized_json,
+          source_uri = excluded.source_uri,
+          observed_at = excluded.observed_at,
+          discovered_at = excluded.discovered_at,
+          content_hash = excluded.content_hash
+      `)
+      .run(
+        validated.id,
+        validated.sourceType,
+        validated.sourceId,
+        validated.evidenceType,
+        JSON.stringify(validated.raw),
+        JSON.stringify(validated.normalized),
+        validated.sourceUri ?? null,
+        validated.observedAt ?? null,
+        validated.discoveredAt,
+        validated.contentHash ?? null
+      );
+  }
+
+  private writeFact(fact: CareerFact): void {
+    const validated = validateCareerFact(fact);
+    this.database
+      .prepare(`
+        INSERT INTO facts
+          (id, type, statement, normalized_data_json, status, confidence, canonical_key,
+           created_at, updated_at, confirmed_at, confirmed_by, supersedes_fact_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          type = excluded.type,
+          statement = excluded.statement,
+          normalized_data_json = excluded.normalized_data_json,
+          status = excluded.status,
+          confidence = excluded.confidence,
+          canonical_key = excluded.canonical_key,
+          created_at = excluded.created_at,
+          updated_at = excluded.updated_at,
+          confirmed_at = excluded.confirmed_at,
+          confirmed_by = excluded.confirmed_by,
+          supersedes_fact_id = excluded.supersedes_fact_id
+      `)
+      .run(
+        validated.id,
+        validated.type,
+        validated.statement,
+        JSON.stringify(validated.normalizedData),
+        validated.status,
+        validated.confidence,
+        validated.canonicalKey ?? null,
+        validated.createdAt,
+        validated.updatedAt,
+        validated.confirmedAt ?? null,
+        validated.confirmedBy ?? null,
+        validated.supersedesFactId ?? null
+      );
+    this.database.prepare('DELETE FROM fact_evidence WHERE fact_id = ?').run(validated.id);
+    const relationStatement = this.database.prepare(`
+      INSERT INTO fact_evidence (fact_id, evidence_id, relation, weight)
+      VALUES (?, ?, ?, ?)
+    `);
+    for (const reference of validated.evidenceRefs) {
+      relationStatement.run(
+        validated.id,
+        reference.evidenceId,
+        reference.relation,
+        reference.weight ?? null
+      );
+    }
+  }
+
+  saveEvidence(evidence: CareerEvidence): void {
+    this.transaction(() => this.writeEvidence(evidence));
+  }
+
+  getEvidence(id: string): CareerEvidence | undefined {
+    const row = this.database.prepare('SELECT * FROM evidence WHERE id = ?').get(id) as
+      | SQLiteRow
+      | undefined;
+    return row ? parseEvidence(row) : undefined;
+  }
+
+  listEvidence(sourceType?: SourceType): CareerEvidence[] {
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const rows = (sourceType
+      ? this.database.prepare('SELECT * FROM evidence WHERE source_type = ? ORDER BY id').all(sourceType)
+      : this.database.prepare('SELECT * FROM evidence ORDER BY id').all()) as unknown as SQLiteRow[];
+    return rows.map(parseEvidence);
+  }
+
+  saveFact(fact: CareerFact): void {
+    this.transaction(() => this.writeFact(fact));
+  }
+
+  getFact(id: string): CareerFact | undefined {
+    const row = this.database.prepare('SELECT * FROM facts WHERE id = ?').get(id) as
+      | SQLiteRow
+      | undefined;
+    if (!row) {
+      return undefined;
+    }
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const refs = this.database
+      .prepare('SELECT evidence_id, relation, weight FROM fact_evidence WHERE fact_id = ? ORDER BY evidence_id')
+      .all(id) as unknown as SQLiteRow[];
+    return parseFact(row, refs);
+  }
+
+  listFacts(status?: CareerFactStatus): CareerFact[] {
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const rows = (status
+      ? this.database.prepare('SELECT * FROM facts WHERE status = ? ORDER BY id').all(status)
+      : this.database.prepare('SELECT * FROM facts ORDER BY id').all()) as unknown as SQLiteRow[];
+    return rows.map((row) => {
+      // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+      const refs = this.database
+        .prepare('SELECT evidence_id, relation, weight FROM fact_evidence WHERE fact_id = ? ORDER BY evidence_id')
+        .all(rowString(row, 'id')) as unknown as SQLiteRow[];
+      return parseFact(row, refs);
+    });
+  }
+
+  updateFactStatus(
+    id: string,
+    status: CareerFactStatus,
+    metadata: { confirmedAt?: string; confirmedBy?: string } = {}
+  ): CareerFact | undefined {
+    const fact = this.getFact(id);
+    if (!fact) {
+      return undefined;
+    }
+    const updatedAt = metadata.confirmedAt ?? new Date().toISOString();
+    const updated: CareerFact = {
+      ...fact,
+      status,
+      updatedAt,
+      ...(status === 'confirmed'
+        ? {
+            confirmedAt: metadata.confirmedAt ?? new Date().toISOString(),
+            confirmedBy: metadata.confirmedBy ?? 'user'
+          }
+        : {})
+    };
+    this.saveFact(updated);
+    return updated;
+  }
+
+  saveCareerIR(ir: CareerIR): void {
+    const validated = validateCareerIR(ir);
+    this.transaction(() => {
+      for (const evidence of validated.evidence) {
+        this.writeEvidence(evidence);
+      }
+      for (const fact of validated.facts) {
+        this.writeFact(fact);
+      }
+      this.database
+        .prepare(`
+          INSERT INTO profiles (profile_id, schema_version, document_json, updated_at)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(profile_id) DO UPDATE SET
+            schema_version = excluded.schema_version,
+            document_json = excluded.document_json,
+            updated_at = excluded.updated_at
+        `)
+        .run(
+          validated.profile.id,
+          validated.schemaVersion,
+          serializeCareerIR(validated),
+          validated.exportedAt
+        );
+    });
+  }
+
+  loadCareerIR(profileId: string): CareerIR | undefined {
+    const row = this.database
+      .prepare('SELECT document_json FROM profiles WHERE profile_id = ?')
+      .get(profileId) as SQLiteRow | undefined;
+    if (!row) {
+      return undefined;
+    }
+    return parseCareerIR(rowString(row, 'document_json'));
+  }
+
+  importCareerIR(ir: CareerIR): void {
+    this.saveCareerIR(validateCareerIR(ir));
+  }
+
+  async exportCareerIRToFile(profileId: string, filePath: string): Promise<void> {
+    const ir = this.loadCareerIR(profileId);
+    if (!ir) {
+      throw new Error(`Career profile not found: ${profileId}`);
+    }
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, serializeCareerIR(ir), 'utf8');
+  }
+
+  async importCareerIRFromFile(filePath: string): Promise<CareerIR> {
+    const ir = parseCareerIR(await readFile(filePath, 'utf8'));
+    this.importCareerIR(ir);
+    return ir;
+  }
+
+  close(): void {
+    this.database.close();
+  }
+}

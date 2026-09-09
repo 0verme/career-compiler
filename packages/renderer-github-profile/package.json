@@ -1,0 +1,17 @@
+{
+  "name": "@career-compiler/renderer-github-profile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic Markdown GitHub profile renderer.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@career-compiler/core": "workspace:*"
+  },
+  "files": ["dist", "README.md"]
+}
