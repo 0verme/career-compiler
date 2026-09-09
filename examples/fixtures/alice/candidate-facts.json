@@ -1,0 +1,80 @@
+[
+  {
+    "id": "fact_b158c8c1",
+    "type": "achievement",
+    "statement": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+    "normalizedData": {
+      "upstreamSystems": 80,
+      "metric": "80+ upstream systems"
+    },
+    "status": "candidate",
+    "confidence": 0.84,
+    "evidenceRefs": [
+      {
+        "evidenceId": "chat:conversation:conversation:alice-lineage-leadership",
+        "relation": "derived-from",
+        "weight": 0.84
+      }
+    ],
+    "canonicalKey": "achievement:systems:80:na",
+    "createdAt": "2025-01-15T00:00:00.000Z",
+    "updatedAt": "2025-01-15T00:00:00.000Z"
+  },
+  {
+    "id": "fact_1fc9019d",
+    "type": "experience",
+    "statement": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
+    "normalizedData": {
+      "role": "Data platform team leadership",
+      "teamSize": 12,
+      "domain": "data platform"
+    },
+    "status": "candidate",
+    "confidence": 0.86,
+    "evidenceRefs": [
+      {
+        "evidenceId": "chat:conversation:conversation:alice-lineage-leadership",
+        "relation": "derived-from",
+        "weight": 0.86
+      }
+    ],
+    "canonicalKey": "experience:team-leadership:12",
+    "createdAt": "2025-01-15T00:00:00.000Z",
+    "updatedAt": "2025-01-15T00:00:00.000Z"
+  },
+  {
+    "id": "fact_e481dfc3",
+    "type": "project",
+    "statement": "Built data-lineage-toolkit: Open lineage platform for dependable data operations.",
+    "normalizedData": {
+      "name": "data-lineage-toolkit",
+      "summary": "Open lineage platform for dependable data operations.",
+      "repositoryUrl": "https://github.com/alice/data-lineage-toolkit",
+      "url": "https://github.com/alice/data-lineage-toolkit",
+      "skills": [
+        "data-lineage",
+        "data-platform",
+        "lakehouse",
+        "TypeScript",
+        "Python"
+      ]
+    },
+    "status": "candidate",
+    "confidence": 0.72,
+    "evidenceRefs": [
+      {
+        "evidenceId": "github:repository:alice/data-lineage-toolkit",
+        "relation": "supports",
+        "weight": 1
+      },
+      {
+        "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+        "relation": "supports",
+        "weight": 1
+      }
+    ],
+    "canonicalKey": "project:data-lineage-toolkit",
+    "createdAt": "2025-01-15T00:00:00.000Z",
+    "updatedAt": "2025-01-15T00:00:00.000Z"
+  }
+]

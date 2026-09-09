@@ -1,0 +1,24 @@
+{
+  "name": "@career-compiler/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Career Compiler command-line interface.",
+  "bin": {
+    "career-compiler": "dist/index.js"
+  },
+  "scripts": {
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@career-compiler/core": "workspace:*",
+    "@career-compiler/renderer-github-profile": "workspace:*",
+    "@career-compiler/renderer-resume": "workspace:*",
+    "@career-compiler/source-chat": "workspace:*",
+    "@career-compiler/source-github": "workspace:*",
+    "@career-compiler/source-local-git": "workspace:*",
+    "@career-compiler/storage": "workspace:*",
+    "commander": "^13.1.0"
+  },
+  "files": ["dist"]
+}

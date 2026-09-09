@@ -1,0 +1,30 @@
+{
+  "name": "career-compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local-first, evidence-backed career data engine.",
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=22.5.0",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false --noEmit",
+    "lint": "eslint .",
+    "test": "pnpm build && vitest run",
+    "test:related": "vitest run",
+    "demo": "pnpm build && tsx scripts/golden-path.ts",
+    "cli": "pnpm --filter @career-compiler/cli start"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.20.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0",
+    "vitest": "^3.0.5"
+  }
+}

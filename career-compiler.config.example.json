@@ -1,0 +1,21 @@
+{
+  "profile": {
+    "id": "default",
+    "displayName": "Your Name",
+    "headline": "Your professional focus",
+    "about": "A short, evidence-backed introduction."
+  },
+  "github": {
+    "tokenEnv": "GITHUB_TOKEN",
+    "apiBaseUrl": "https://api.github.com",
+    "maxRepositories": 20,
+    "maxActivityItems": 10
+  },
+  "scanner": {
+    "maxDepth": 3,
+    "maxCommits": 200,
+    "maxFiles": 5000,
+    "allowlist": [],
+    "denylist": []
+  }
+}

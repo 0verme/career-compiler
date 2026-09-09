@@ -1,0 +1,17 @@
+{
+  "name": "@career-compiler/source-local-git",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Privacy-first local Git CareerSource adapter.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@career-compiler/core": "workspace:*"
+  },
+  "files": ["dist", "README.md"]
+}

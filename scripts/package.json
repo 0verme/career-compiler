@@ -1,0 +1,14 @@
+{
+  "name": "@career-compiler/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@career-compiler/core": "workspace:*",
+    "@career-compiler/renderer-github-profile": "workspace:*",
+    "@career-compiler/renderer-resume": "workspace:*",
+    "@career-compiler/source-chat": "workspace:*",
+    "@career-compiler/source-github": "workspace:*",
+    "@career-compiler/source-local-git": "workspace:*"
+  }
+}
