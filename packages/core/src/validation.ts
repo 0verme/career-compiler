@@ -3,7 +3,9 @@ import type {
   CareerEvidenceRef,
   CareerFact,
   CareerFactStatus,
+  EvidenceAttribution,
   EvidenceRelation,
+  CareerIdentity,
   CareerIR,
   CareerProfile,
   JsonObject,
@@ -71,6 +73,45 @@ export function isEvidenceRelation(value: unknown): value is EvidenceRelation {
   return value === 'supports' || value === 'derived-from' || value === 'contradicts' || value === 'context';
 }
 
+export function isEvidenceAttribution(value: unknown): value is EvidenceAttribution {
+  return (
+    value === 'owned' ||
+    value === 'authored' ||
+    value === 'contributed' ||
+    value === 'reviewed' ||
+    value === 'context' ||
+    value === 'unknown'
+  );
+}
+
+function validateCareerIdentity(value: unknown, field: string): asserts value is CareerIdentity {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError(`${field} must be an object`);
+  }
+  const identity = value as Partial<CareerIdentity>;
+  if (!Array.isArray(identity.sources) || identity.sources.length === 0) {
+    throw new DomainValidationError(`${field}.sources must contain at least one source identity`);
+  }
+  identity.sources.forEach((source, index) => {
+    if (typeof source !== 'object' || source === null || Array.isArray(source)) {
+      throw new DomainValidationError(`${field}.sources[${index}] must be an object`);
+    }
+    assertNonEmptyString(source.provider, `${field}.sources[${index}].provider`);
+    assertNonEmptyString(source.externalId, `${field}.sources[${index}].externalId`);
+    for (const [key, values] of [['names', source.names], ['emails', source.emails]] as const) {
+      if (values !== undefined && (!Array.isArray(values) ||
+        !values.every((item) => typeof item === 'string' && item.trim().length > 0))) {
+        throw new DomainValidationError(`${field}.sources[${index}].${key} must be an array of strings`);
+      }
+    }
+    for (const [key, text] of [['username', source.username], ['displayName', source.displayName]] as const) {
+      if (text !== undefined) {
+        assertNonEmptyString(text, `${field}.sources[${index}].${key}`);
+      }
+    }
+  });
+}
+
 function assertEvidenceRef(value: unknown, index: number): asserts value is CareerEvidenceRef {
   if (typeof value !== 'object' || value === null) {
     throw new DomainValidationError(`evidenceRefs[${index}] must be an object`);
@@ -100,6 +141,12 @@ export function validateCareerEvidence(value: unknown): CareerEvidence {
   }
   if (!isJsonObject(evidence.normalized)) {
     throw new DomainValidationError('evidence.normalized must be a JSON object');
+  }
+  if (evidence.attribution !== undefined && !isEvidenceAttribution(evidence.attribution)) {
+    throw new DomainValidationError(`Unsupported evidence attribution: ${String(evidence.attribution)}`);
+  }
+  if (evidence.externalContribution !== undefined && typeof evidence.externalContribution !== 'boolean') {
+    throw new DomainValidationError('evidence.externalContribution must be a boolean');
   }
   assertIsoDate(evidence.discoveredAt, 'evidence.discoveredAt');
   if (evidence.observedAt !== undefined) {
@@ -143,6 +190,9 @@ function validateProfile(profile: unknown): CareerProfile {
   const value = profile as Partial<CareerProfile>;
   assertNonEmptyString(value.id, 'profile.id');
   assertNonEmptyString(value.displayName, 'profile.displayName');
+  if (value.identity !== undefined) {
+    validateCareerIdentity(value.identity, 'profile.identity');
+  }
   if (!Array.isArray(value.experiences)) {
     throw new DomainValidationError('profile.experiences must be an array');
   }
@@ -181,7 +231,7 @@ export function validateCareerIR(value: unknown): CareerIR {
     throw new DomainValidationError('ir.facts must be an array');
   }
   const evidenceIds = new Set(ir.evidence.map((item) => validateCareerEvidence(item).id));
-  ir.facts.forEach((fact) => {
+  for (const fact of ir.facts) {
     const validated = validateCareerFact(fact);
     for (const reference of validated.evidenceRefs) {
       if (!evidenceIds.has(reference.evidenceId)) {
@@ -190,7 +240,7 @@ export function validateCareerIR(value: unknown): CareerIR {
         );
       }
     }
-  });
+  }
   return ir as CareerIR;
 }
 

@@ -5,11 +5,19 @@
     "headline": "Your professional focus",
     "about": "A short, evidence-backed introduction."
   },
+  "identity": {
+    "githubUsername": "your-github-username",
+    "git": {
+      "authorNames": ["Your Name"],
+      "authorEmails": ["you@example.invalid"]
+    }
+  },
   "github": {
     "tokenEnv": "GITHUB_TOKEN",
     "apiBaseUrl": "https://api.github.com",
     "maxRepositories": 20,
-    "maxActivityItems": 10
+    "maxActivityItems": 10,
+    "maxExternalContributions": 20
   },
   "scanner": {
     "maxDepth": 3,

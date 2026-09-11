@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import type {
   CareerFact,
   CareerFactStatus,
+  CareerIdentity,
   CareerIR,
   CareerRepository,
   SourceRunContext
@@ -31,6 +32,7 @@ import {
   getDefaultDatabasePath
 } from '@career-compiler/storage';
 import {
+  careerIdentity,
   loadConfig,
   profileSeed,
   resolveDataDirectory,
@@ -48,6 +50,7 @@ interface Runtime {
   config: CareerCompilerConfig;
   dataDir: string;
   profileId: string;
+  identity?: CareerIdentity;
   repository: CareerRepository;
 }
 
@@ -71,8 +74,11 @@ function rootOptions(command: Command): RootOptions {
   return rootCommand(command).opts() as RootOptions;
 }
 
-function nowContext(): SourceRunContext {
-  return { now: new Date().toISOString() };
+function nowContext(identity?: CareerIdentity): SourceRunContext {
+  return {
+    now: new Date().toISOString(),
+    ...(identity ? { identity } : {})
+  };
 }
 
 function parsePositiveInteger(value: string | undefined, optionName: string): number | undefined {
@@ -82,6 +88,17 @@ function parsePositiveInteger(value: string | undefined, optionName: string): nu
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new Error(`${optionName} must be a positive integer`);
+  }
+  return parsed;
+}
+
+function parseNonNegativeInteger(value: string | undefined, optionName: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${optionName} must be a non-negative integer`);
   }
   return parsed;
 }
@@ -106,12 +123,19 @@ async function openRuntime(command: Command, profileOverride?: string): Promise<
   const repository = new SQLiteCareerRepository({
     filePath: resolve(dataDir, 'career-compiler.sqlite')
   });
-  return { config: loaded.config, dataDir, profileId, repository };
+  return {
+    config: loaded.config,
+    dataDir,
+    profileId,
+    identity: careerIdentity(loaded.config),
+    repository
+  };
 }
 
 function effectiveProfileSeed(runtime: Runtime): ReturnType<typeof profileSeed> {
   const existing = runtime.repository.loadCareerIR(runtime.profileId);
   const configured = profileSeed(runtime.config);
+  const identity = runtime.identity ?? existing?.profile.identity;
   return {
     id: runtime.profileId,
     displayName:
@@ -121,7 +145,8 @@ function effectiveProfileSeed(runtime: Runtime): ReturnType<typeof profileSeed> 
       : {}),
     ...(runtime.config.profile?.about ?? existing?.profile.about
       ? { about: runtime.config.profile?.about ?? existing?.profile.about }
-      : {})
+      : {}),
+    ...(identity ? { identity } : {})
   };
 }
 
@@ -212,20 +237,30 @@ scan
   .option('--token-env <name>', '读取 GitHub token 的环境变量名')
   .option('--max-repositories <number>', '最多扫描 repository 数量')
   .option('--max-activity-items <number>', '每个 repository 最多扫描的 commits/issues/PRs')
+  .option('--max-external-contributions <number>', '最多发现的外部 authored pull requests，0 表示关闭')
   .action(async (username: string, options: Record<string, string>, command: Command) => {
     await withRuntime(command, async (runtime) => {
       const maxRepositories = parsePositiveInteger(options.maxRepositories, '--max-repositories');
       const maxActivityItems = parsePositiveInteger(options.maxActivityItems, '--max-activity-items');
+      const maxExternalContributions = parseNonNegativeInteger(
+        options.maxExternalContributions,
+        '--max-external-contributions'
+      );
       const tokenEnv = options.tokenEnv ?? runtime.config.github?.tokenEnv ?? 'GITHUB_TOKEN';
       const source = new GitHubSource({
         token: process.env[tokenEnv],
         apiBaseUrl: runtime.config.github?.apiBaseUrl,
         maxRepositories: maxRepositories ?? runtime.config.github?.maxRepositories,
-        maxActivityItems: maxActivityItems ?? runtime.config.github?.maxActivityItems
+        maxActivityItems: maxActivityItems ?? runtime.config.github?.maxActivityItems,
+        maxExternalContributions:
+          maxExternalContributions ?? runtime.config.github?.maxExternalContributions
       });
-      const context = nowContext();
+      const context = nowContext(runtime.identity);
       const discovery = await source.discover(
-        options.repository ? { repository: options.repository } : { username },
+        {
+          username,
+          ...(options.repository ? { repository: options.repository } : {})
+        },
         context
       );
       const result = await source.scan(discovery, context);
@@ -234,7 +269,9 @@ scan
       printValue(command, {
         source: 'github',
         repositories: result.repositories.length,
+        externalPullRequests: result.externalPullRequests.length,
         evidence: evidence.length,
+        ...(result.warnings ? { warnings: result.warnings } : {}),
         database: getDefaultDatabasePath() === resolve(runtime.dataDir, 'career-compiler.sqlite')
           ? 'default'
           : resolve(runtime.dataDir, 'career-compiler.sqlite')
@@ -268,7 +305,7 @@ scan
         ...(Array.isArray(options.deny) ? { denylist: [...basePolicy.denylist, ...options.deny] } : {})
       };
       const source = new LocalGitSource();
-      const context: SourceRunContext = { ...nowContext(), scanner: policy };
+      const context: SourceRunContext = { ...nowContext(runtime.identity), scanner: policy };
       const discovery = await source.discover({ directory, policy }, context);
       const result = await source.scan(discovery, context);
       const evidence = await source.extractEvidence(result, context);

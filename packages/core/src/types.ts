@@ -33,6 +33,29 @@ export type CareerFactType =
   | 'role'
   | (string & {});
 
+export type IdentityProvider = 'github' | 'git' | (string & {});
+
+export interface SourceIdentity {
+  provider: IdentityProvider;
+  externalId: string;
+  username?: string;
+  displayName?: string;
+  names?: string[];
+  emails?: string[];
+}
+
+export interface CareerIdentity {
+  sources: SourceIdentity[];
+}
+
+export type EvidenceAttribution =
+  | 'owned'
+  | 'authored'
+  | 'contributed'
+  | 'reviewed'
+  | 'context'
+  | 'unknown';
+
 export type CareerFactStatus =
   | 'candidate'
   | 'confirmed'
@@ -56,6 +79,10 @@ export interface CareerEvidence {
   evidenceType: EvidenceType;
   raw: JsonObject;
   normalized: JsonObject;
+  /** Who the source can reliably attribute this observation to. */
+  attribution?: EvidenceAttribution;
+  /** True when an authored observation belongs to a repository not owned by the identity. */
+  externalContribution?: boolean;
   sourceUri?: string;
   observedAt?: string;
   discoveredAt: string;
@@ -123,6 +150,7 @@ export interface CareerProfile {
   displayName: string;
   headline?: string;
   about?: string;
+  identity?: CareerIdentity;
   experiences: CareerExperience[];
   projects: CareerProject[];
   skills: CareerSkill[];
@@ -143,6 +171,7 @@ export interface CareerIR {
 export interface SourceRunContext {
   now: string;
   scanner?: ScannerPolicy;
+  identity?: CareerIdentity;
 }
 
 export interface CareerSource<

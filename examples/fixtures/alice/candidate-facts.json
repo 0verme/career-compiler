@@ -45,12 +45,15 @@
   {
     "id": "fact_e481dfc3",
     "type": "project",
-    "statement": "Built data-lineage-toolkit: Open lineage platform for dependable data operations.",
+    "statement": "Works on data-lineage-toolkit",
     "normalizedData": {
       "name": "data-lineage-toolkit",
       "summary": "Open lineage platform for dependable data operations.",
       "repositoryUrl": "https://github.com/alice/data-lineage-toolkit",
       "url": "https://github.com/alice/data-lineage-toolkit",
+      "attribution": "owned",
+      "fork": false,
+      "authoredActivityCount": 3,
       "skills": [
         "data-lineage",
         "data-platform",
@@ -60,8 +63,23 @@
       ]
     },
     "status": "candidate",
-    "confidence": 0.72,
+    "confidence": 0.83,
     "evidenceRefs": [
+      {
+        "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+        "relation": "supports",
+        "weight": 1
+      },
+      {
+        "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+        "relation": "supports",
+        "weight": 1
+      },
+      {
+        "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+        "relation": "supports",
+        "weight": 1
+      },
       {
         "evidenceId": "github:repository:alice/data-lineage-toolkit",
         "relation": "supports",

@@ -17,7 +17,9 @@ interface CareerSource<TRequest, TDiscovery = unknown, TScan = unknown> {
 
 - `discover`：根据用户请求找到目标，不产生职业结论。
 - `scan`：访问 API 或本地 metadata，得到 source-specific scan result。
-- `extractEvidence`：把 scan result 转换为稳定的 `CareerEvidence`，保存 raw/normalized provenance。
+- `extractEvidence`：把 scan result 转换为稳定的 `CareerEvidence`，保存 raw/normalized provenance 与 attribution。
+
+`SourceRunContext.identity` 提供当前 Career Identity。Source 必须先判断“谁的贡献”，再把观察保存为 evidence；没有可靠归因时使用 `context` 或 `unknown`，不能为了 recall 猜测 authored。
 
 Source 可以有自己的 request/scan types，但返回的 Evidence 必须通过 Core validation。
 
@@ -31,13 +33,17 @@ Source 可以有自己的 request/scan types，但返回的 Evidence 必须通�
 - repository description/default branch/topics/languages
 - commit metadata
 - issue metadata
-- pull request metadata
+- pull request metadata，包括 author、created/updated/merged timestamps、state 和 merge 状态
+- 有限的 external authored PR discovery（GitHub Search API `author:<username> type:pr`）
+- `owned` / `authored` / `context` attribution，以及 fork 和 `externalContribution` 语义
 
-它不会把 commit 数量当作工程能力，也不会把 GitHub activity 自动写成 confirmed fact。
+repository 是 project context，不等于用户贡献。非 fork owned repository 只产生保守的 `Maintains` / `Works on` candidate；fork 默认 context-only。它不会把 commit、PR、star、fork 或 activity count 当作能力评级，也不会把 GitHub activity 自动写成 confirmed fact。
 
 ### Local Git
 
 `LocalGitSource` 只接受用户显式传入的目录。它通过 Git 命令读取 remote、branch、有限 commit history metadata、contributors、tags，并以 tracked file path 的 extension 推断语言；不会读取源码内容。README 只抽取受限 title/excerpt，`package.json` 只抽取 name/description。
+
+Local Git 通过 `SourceRunContext.identity` 中的 `git.authorNames` / `git.authorEmails` 预留身份匹配：匹配的 commit 标记 `authored`，未匹配的 commit 标记 `context`；没有配置 identity 时为 `unknown`，不会默认把本地 repository 归给用户。
 
 Scanner policy 支持：
 
@@ -58,7 +64,8 @@ Scanner policy 支持：
 - Source 原始输入留在本地 storage；导出前由用户决定是否携带 local path。
 - `AIProvider` 接收的是显式传入的 normalized evidence，不默认获得整个 repository 或 raw secret material。
 - 网络错误、Git 命令错误和 schema 错误应显式失败；不能以空事实静默掩盖扫描失败。
-- Source 的重复运行使用稳定 evidence id，storage 通过 upsert 保持可重复导入。
+- GitHub required request 遇到 rate limit 必须明确提示 token、减少范围或稍后重试；可选 external search 可返回 warning 并保留其他 evidence。
+- Source 的重复运行使用稳定 evidence id，storage 通过 upsert 保持可重复导入；confirmed fact 不可被 candidate rescan 静默降级或改写。
 
 ## 新 Source checklist
 

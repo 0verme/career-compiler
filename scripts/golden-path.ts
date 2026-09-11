@@ -43,7 +43,13 @@ const ir = buildCareerIR({
     id: 'alice',
     displayName: 'Alice Example',
     headline: 'Data platform leader building dependable lineage systems',
-    about: 'I build data platforms and turn complex system landscapes into reliable, explainable products.'
+    about: 'I build data platforms and turn complex system landscapes into reliable, explainable products.',
+    identity: {
+      sources: [
+        { provider: 'github', externalId: 'alice', username: 'alice' },
+        { provider: 'git', externalId: 'alice@example.invalid', emails: ['alice@example.invalid'], names: ['Alice Example'] }
+      ]
+    }
   },
   facts: confirmedFacts,
   evidence,

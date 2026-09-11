@@ -41,12 +41,16 @@ Career IR 提供：
 - `normalized`：供 domain pipeline 使用的 metadata
 - `sourceUri`
 - `observedAt` / `discoveredAt`
+- 可选 `attribution`：`owned`、`authored`、`contributed`、`reviewed`、`context` 或 `unknown`
+- 可选 `externalContribution`，表示 authored work 发生在非本人 owner 的 repository
 
-例如 GitHub repository description、Local Git current branch、某条 commit metadata、conversation message 都是 evidence。Evidence 可以没有任何 fact，也不应被伪装成能力评价。
+例如 GitHub repository description、Local Git current branch、某条 commit metadata、conversation message 都是 evidence。Evidence 可以没有任何 fact，也不应被伪装成能力评价。GitHub repository activity 不会因为属于一个 repository 就自动成为当前 identity 的 authored evidence。
 
 ### Fact
 
 `CareerFact` 是对 evidence 的规范化 claim。它必须包含 `evidenceRefs`，并有 `status`、`confidence`、时间戳和可选 `canonicalKey`。一个 fact 可以关联多个 evidence；同一个 repository 的 GitHub metadata、Local Git metadata 和 Conversation 可以共同支持一个 project fact。
+
+Profile 可以在 `profile.identity.sources` 中声明 GitHub username 和 Git author names/emails。这个 identity 不是账户系统，而是 Source attribution 时使用的声明。
 
 Fact lifecycle 至少是：
 
@@ -69,6 +73,7 @@ Resume bullet、GitHub README 的 section 顺序、Markdown link 形式、面向
 - GitHub README-only 的 badge、SVG、动画、访问量组件
 - 某一家 LLM 的 prompt、model name、temperature 或私有 response 格式
 - Source-specific API pagination/cache 状态
+- repository activity 与用户 identity 之间未经归因的推断
 - 由 commit 数、代码量或 activity count 直接推导的“能力评分”
 - 没有 provenance 的任意 AI 生成句子
 - secrets、token、`.env` 内容、私有源码正文
@@ -76,6 +81,10 @@ Resume bullet、GitHub README 的 section 顺序、Markdown link 形式、面向
 Source-specific metadata 可以作为 Evidence 的 normalized payload；只有跨 renderer 需要且能解释 provenance 的职业语义才进入 Fact/Profile。
 
 ## Source 与 Renderer 如何解耦
+
+本轮没有新增 `contribution` fact type：external authored PR 和 fork 中明确 authored work 使用现有 `achievement` candidate 表达，确认后由现有 renderer 处理；这样保持 Career IR `schemaVersion: "0.1"`，同时保留清晰的 evidence provenance。
+
+## Source 实现
 
 Source 实现 `CareerSource<TRequest, TDiscovery, TScan>`：
 
