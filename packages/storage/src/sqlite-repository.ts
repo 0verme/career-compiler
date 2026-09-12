@@ -38,6 +38,25 @@ function rowNullableString(row: SQLiteRow, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function rowNullableBoolean(row: SQLiteRow, key: string): boolean | undefined {
+  const value = row[key];
+  if (value === true || value === 1) {
+    return true;
+  }
+  if (value === false || value === 0) {
+    return false;
+  }
+  return undefined;
+}
+
+function rowNullableAttribution(row: SQLiteRow): CareerEvidence['attribution'] {
+  const value = rowNullableString(row, 'attribution');
+  return value === 'owned' || value === 'authored' || value === 'contributed' ||
+    value === 'reviewed' || value === 'context' || value === 'unknown'
+    ? value
+    : undefined;
+}
+
 function parseJsonObject(serialized: string, field: string): JsonObject {
   let value: unknown;
   try {
@@ -61,6 +80,10 @@ function parseEvidence(row: SQLiteRow): CareerEvidence {
     evidenceType: rowString(row, 'evidence_type'),
     raw: parseJsonObject(rowString(row, 'raw_json'), 'evidence.raw'),
     normalized: parseJsonObject(rowString(row, 'normalized_json'), 'evidence.normalized'),
+    ...(rowNullableAttribution(row) ? { attribution: rowNullableAttribution(row) } : {}),
+    ...(rowNullableBoolean(row, 'external_contribution') !== undefined
+      ? { externalContribution: rowNullableBoolean(row, 'external_contribution') }
+      : {}),
     ...(rowNullableString(row, 'source_uri') ? { sourceUri: rowNullableString(row, 'source_uri') } : {}),
     ...(rowNullableString(row, 'observed_at') ? { observedAt: rowNullableString(row, 'observed_at') } : {}),
     discoveredAt: rowString(row, 'discovered_at'),
@@ -124,7 +147,9 @@ export class SQLiteCareerRepository implements CareerRepository {
         source_uri TEXT,
         observed_at TEXT,
         discovered_at TEXT NOT NULL,
-        content_hash TEXT
+        content_hash TEXT,
+        attribution TEXT,
+        external_contribution INTEGER
       );
       CREATE INDEX IF NOT EXISTS idx_evidence_source_type ON evidence(source_type);
       CREATE INDEX IF NOT EXISTS idx_evidence_source_id ON evidence(source_id);
@@ -162,6 +187,22 @@ export class SQLiteCareerRepository implements CareerRepository {
         updated_at TEXT NOT NULL
       );
     `);
+    this.ensureEvidenceColumns();
+  }
+
+  private ensureEvidenceColumns(): void {
+    // Existing V0.1 databases may not have the optional attribution columns.
+    // SAFETY: node:sqlite returns PRAGMA table_info rows as string-keyed records.
+    const columns = this.database
+      .prepare('PRAGMA table_info(evidence)')
+      .all() as unknown as SQLiteRow[];
+    const names = new Set(columns.map((column) => rowString(column, 'name')));
+    if (!names.has('attribution')) {
+      this.database.exec('ALTER TABLE evidence ADD COLUMN attribution TEXT;');
+    }
+    if (!names.has('external_contribution')) {
+      this.database.exec('ALTER TABLE evidence ADD COLUMN external_contribution INTEGER;');
+    }
   }
 
   private transaction<T>(operation: () => T): T {
@@ -182,14 +223,16 @@ export class SQLiteCareerRepository implements CareerRepository {
       .prepare(`
         INSERT INTO evidence
           (id, source_type, source_id, evidence_type, raw_json, normalized_json,
-           source_uri, observed_at, discovered_at, content_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           attribution, external_contribution, source_uri, observed_at, discovered_at, content_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           source_type = excluded.source_type,
           source_id = excluded.source_id,
           evidence_type = excluded.evidence_type,
           raw_json = excluded.raw_json,
           normalized_json = excluded.normalized_json,
+          attribution = excluded.attribution,
+          external_contribution = excluded.external_contribution,
           source_uri = excluded.source_uri,
           observed_at = excluded.observed_at,
           discovered_at = excluded.discovered_at,
@@ -202,6 +245,8 @@ export class SQLiteCareerRepository implements CareerRepository {
         validated.evidenceType,
         JSON.stringify(validated.raw),
         JSON.stringify(validated.normalized),
+        validated.attribution ?? null,
+        validated.externalContribution === undefined ? null : validated.externalContribution ? 1 : 0,
         validated.sourceUri ?? null,
         validated.observedAt ?? null,
         validated.discoveredAt,
@@ -209,8 +254,24 @@ export class SQLiteCareerRepository implements CareerRepository {
       );
   }
 
-  private writeFact(fact: CareerFact): void {
+  private writeFact(fact: CareerFact, protectConfirmed = true): void {
     const validated = validateCareerFact(fact);
+    const existing = this.getFact(validated.id);
+    let toWrite = validated;
+    if (protectConfirmed && existing?.status === 'confirmed' && validated.status !== 'confirmed') {
+      const refs = new Map(existing.evidenceRefs.map((reference) => [reference.evidenceId, reference]));
+      for (const reference of validated.evidenceRefs) {
+        const previous = refs.get(reference.evidenceId);
+        if (!previous || (reference.weight ?? 0) > (previous.weight ?? 0)) {
+          refs.set(reference.evidenceId, reference);
+        }
+      }
+      toWrite = {
+        ...existing,
+        evidenceRefs: [...refs.values()].sort((left, right) => left.evidenceId.localeCompare(right.evidenceId)),
+        updatedAt: validated.updatedAt
+      };
+    }
     this.database
       .prepare(`
         INSERT INTO facts
@@ -231,27 +292,27 @@ export class SQLiteCareerRepository implements CareerRepository {
           supersedes_fact_id = excluded.supersedes_fact_id
       `)
       .run(
-        validated.id,
-        validated.type,
-        validated.statement,
-        JSON.stringify(validated.normalizedData),
-        validated.status,
-        validated.confidence,
-        validated.canonicalKey ?? null,
-        validated.createdAt,
-        validated.updatedAt,
-        validated.confirmedAt ?? null,
-        validated.confirmedBy ?? null,
-        validated.supersedesFactId ?? null
+        toWrite.id,
+        toWrite.type,
+        toWrite.statement,
+        JSON.stringify(toWrite.normalizedData),
+        toWrite.status,
+        toWrite.confidence,
+        toWrite.canonicalKey ?? null,
+        toWrite.createdAt,
+        toWrite.updatedAt,
+        toWrite.confirmedAt ?? null,
+        toWrite.confirmedBy ?? null,
+        toWrite.supersedesFactId ?? null
       );
-    this.database.prepare('DELETE FROM fact_evidence WHERE fact_id = ?').run(validated.id);
+    this.database.prepare('DELETE FROM fact_evidence WHERE fact_id = ?').run(toWrite.id);
     const relationStatement = this.database.prepare(`
       INSERT INTO fact_evidence (fact_id, evidence_id, relation, weight)
       VALUES (?, ?, ?, ?)
     `);
-    for (const reference of validated.evidenceRefs) {
+    for (const reference of toWrite.evidenceRefs) {
       relationStatement.run(
-        validated.id,
+        toWrite.id,
         reference.evidenceId,
         reference.relation,
         reference.weight ?? null
@@ -331,7 +392,7 @@ export class SQLiteCareerRepository implements CareerRepository {
           }
         : {})
     };
-    this.saveFact(updated);
+    this.transaction(() => this.writeFact(updated, false));
     return updated;
   }
 

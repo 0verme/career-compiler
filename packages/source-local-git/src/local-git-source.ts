@@ -6,8 +6,10 @@ import { pathToFileURL } from 'node:url';
 import type {
   CareerEvidence,
   CareerSource,
+  EvidenceAttribution,
   JsonObject,
   ScannerPolicy,
+  SourceIdentity,
   SourceRunContext
 } from '@career-compiler/core';
 import {
@@ -19,6 +21,7 @@ const execFile = promisify(execFileCallback);
 
 export interface LocalGitSourceOptions {
   policy?: Partial<ScannerPolicy>;
+  identity?: SourceIdentity;
   gitRunner?: GitRunner;
 }
 
@@ -38,6 +41,7 @@ export interface LocalGitCommit {
   authorDate?: string;
   committerDate?: string;
   author: string;
+  authorEmail?: string;
   subject: string;
 }
 
@@ -152,6 +156,33 @@ const BINARY_EXTENSIONS = new Set([
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function normalizedText(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function localIdentityMatches(commit: LocalGitCommit, identity: SourceIdentity | undefined): boolean {
+  if (!identity || identity.provider !== 'git') {
+    return false;
+  }
+  const names = new Set((identity.names ?? []).map(normalizedText));
+  const emails = new Set((identity.emails ?? []).map(normalizedText));
+  const externalId = normalizedText(identity.externalId);
+  return names.has(normalizedText(commit.author)) ||
+    (commit.authorEmail ? emails.has(normalizedText(commit.authorEmail)) : false) ||
+    externalId === normalizedText(commit.author) ||
+    (commit.authorEmail ? externalId === normalizedText(commit.authorEmail) : false);
+}
+
+function attributionForCommit(
+  commit: LocalGitCommit,
+  identity: SourceIdentity | undefined
+): EvidenceAttribution {
+  if (!identity) {
+    return 'unknown';
+  }
+  return localIdentityMatches(commit, identity) ? 'authored' : 'context';
 }
 
 function jsonObject(entries: Record<string, unknown>): JsonObject {
@@ -278,12 +309,13 @@ function parseCommits(serialized: string): LocalGitCommit[] {
     .map((record) => record.trim())
     .filter(Boolean)
     .map((record) => {
-      const [hash, authorDate, committerDate, author, subject] = record.split('\x1f');
+      const [hash, authorDate, committerDate, author, authorEmail, subject] = record.split('\x1f');
       return {
         hash: hash ?? '',
         ...(stringValue(authorDate) ? { authorDate: stringValue(authorDate) } : {}),
         ...(stringValue(committerDate) ? { committerDate: stringValue(committerDate) } : {}),
         author: stringValue(author) ?? 'Unknown contributor',
+        ...(stringValue(authorEmail) ? { authorEmail: stringValue(authorEmail) } : {}),
         subject: stringValue(subject) ?? '(no subject)'
       };
     })
@@ -302,7 +334,8 @@ function parseContributors(serialized: string): string[] {
 }
 
 function parseTags(serialized: string): string[] {
-  return [...new Set(serialized.split('\n').map((tag) => tag.trim()).filter(Boolean))].sort();
+  return [...new Set(serialized.split('\n').map((tag) => tag.trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
 }
 
 function languageForPath(path: string): string | undefined {
@@ -393,14 +426,14 @@ async function scanRepository(
       'log',
       '--all',
       '--date=iso-strict',
-      `--format=%H%x1f%aI%x1f%cI%x1f%an%x1f%s%x1e`,
+      `--format=%H%x1f%aI%x1f%cI%x1f%an%x1f%ae%x1f%s%x1e`,
       '-n',
       String(policy.maxCommits)
     ])) ?? '';
   const commits = parseCommits(commitLog);
   const dates = commits
     .flatMap((commit) => [commit.authorDate, commit.committerDate].filter((date): date is string => Boolean(date)))
-    .sort();
+    .sort((left, right) => left.localeCompare(right));
   const contributors = parseContributors(
     (await optionalGit(git, repositoryPath, ['shortlog', '-sne', '--all'])) ?? ''
   );
@@ -430,10 +463,12 @@ export class LocalGitSource
   readonly sourceType = 'local-git' as const;
 
   private readonly sourcePolicy: Partial<ScannerPolicy>;
+  private readonly identity?: SourceIdentity;
   private readonly git: GitRunner;
 
   constructor(options: LocalGitSourceOptions = {}) {
     this.sourcePolicy = options.policy ?? {};
+    this.identity = options.identity;
     this.git = options.gitRunner ?? defaultGitRunner;
   }
 
@@ -498,7 +533,14 @@ export class LocalGitSource
     context: SourceRunContext
   ): Promise<CareerEvidence[]> {
     const evidence: CareerEvidence[] = [];
+    const identity = context.identity?.sources.find((item) => item.provider === 'git') ?? this.identity;
     for (const repository of scan.repositories) {
+      const authoredCommits = repository.commits.filter((commit) => localIdentityMatches(commit, identity));
+      const repositoryAttribution: EvidenceAttribution = authoredCommits.length > 0
+        ? 'contributed'
+        : identity
+          ? 'context'
+          : 'unknown';
       const remote = repository.remote;
       const sourceId = remote ? `${repository.name}:${remote}` : `path:${repository.path}`;
       const sourceUri = remote ?? pathToFileURL(repository.path).toString();
@@ -521,7 +563,8 @@ export class LocalGitSource
           languages: repository.languages,
           tags: repository.tags,
           readme,
-          projectMetadata
+          projectMetadata,
+          attribution: repositoryAttribution
         }),
         normalized: jsonObject({
           canonicalName: repository.name,
@@ -537,8 +580,11 @@ export class LocalGitSource
           languages: repository.languages,
           tags: repository.tags,
           localPath: repository.path,
-          skills: repository.languages
+          skills: repository.languages,
+          attribution: repositoryAttribution,
+          authoredActivityCount: authoredCommits.length
         }),
+        attribution: repositoryAttribution,
         sourceUri,
         observedAt: repository.lastActivity,
         discoveredAt: context.now
@@ -571,14 +617,18 @@ export class LocalGitSource
             ...(commit.authorDate ? { authorDate: commit.authorDate } : {}),
             ...(commit.committerDate ? { committerDate: commit.committerDate } : {}),
             author: commit.author,
+            ...(commit.authorEmail ? { authorEmail: commit.authorEmail } : {}),
             subject: commit.subject
           },
           normalized: {
             repository: repository.name,
             hash: commit.hash,
             summary: commit.subject,
-            author: commit.author
+            author: commit.author,
+            ...(commit.authorEmail ? { authorEmail: commit.authorEmail } : {}),
+            attribution: attributionForCommit(commit, identity)
           },
+          attribution: attributionForCommit(commit, identity),
           sourceUri,
           observedAt: commit.committerDate ?? commit.authorDate,
           discoveredAt: context.now
@@ -610,8 +660,10 @@ export function createAliceLocalGitFixtureEvidence(
         lastActivity: '2025-01-14T12:00:00.000Z',
         contributors: ['Alice Example', 'Bob Example'],
         languages: ['Python', 'TypeScript'],
-        tags: ['v1.0.0']
+        tags: ['v1.0.0'],
+        attribution: 'owned'
       },
+      attribution: 'owned',
       normalized: {
         canonicalName: 'data-lineage-toolkit',
         name: 'data-lineage-toolkit',
@@ -625,7 +677,8 @@ export function createAliceLocalGitFixtureEvidence(
         languages: ['Python', 'TypeScript'],
         tags: ['v1.0.0'],
         localPath: 'C:/Users/alice/work/data-lineage-toolkit',
-        skills: ['Python', 'TypeScript']
+        skills: ['Python', 'TypeScript'],
+        attribution: 'owned'
       },
       sourceUri: 'https://github.com/alice/data-lineage-toolkit',
       observedAt: '2025-01-14T12:00:00.000Z',

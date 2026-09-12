@@ -7,6 +7,25 @@
     "displayName": "Alice Example",
     "headline": "Data platform leader building dependable lineage systems",
     "about": "I build data platforms and turn complex system landscapes into reliable, explainable products.",
+    "identity": {
+      "sources": [
+        {
+          "provider": "github",
+          "externalId": "alice",
+          "username": "alice"
+        },
+        {
+          "provider": "git",
+          "externalId": "alice@example.invalid",
+          "emails": [
+            "alice@example.invalid"
+          ],
+          "names": [
+            "Alice Example"
+          ]
+        }
+      ]
+    },
     "experiences": [
       {
         "id": "experience_1fc9019d",
@@ -43,6 +62,21 @@
         ],
         "evidenceRefs": [
           {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
             "evidenceId": "github:repository:alice/data-lineage-toolkit",
             "relation": "supports",
             "weight": 1
@@ -64,6 +98,21 @@
         ],
         "evidenceRefs": [
           {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
             "evidenceId": "github:repository:alice/data-lineage-toolkit",
             "relation": "supports",
             "weight": 1
@@ -82,6 +131,21 @@
           "fact_e481dfc3"
         ],
         "evidenceRefs": [
+          {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
           {
             "evidenceId": "github:repository:alice/data-lineage-toolkit",
             "relation": "supports",
@@ -102,6 +166,21 @@
         ],
         "evidenceRefs": [
           {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
             "evidenceId": "github:repository:alice/data-lineage-toolkit",
             "relation": "supports",
             "weight": 1
@@ -121,6 +200,21 @@
         ],
         "evidenceRefs": [
           {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
             "evidenceId": "github:repository:alice/data-lineage-toolkit",
             "relation": "supports",
             "weight": 1
@@ -139,6 +233,21 @@
           "fact_e481dfc3"
         ],
         "evidenceRefs": [
+          {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
           {
             "evidenceId": "github:repository:alice/data-lineage-toolkit",
             "relation": "supports",
@@ -222,12 +331,15 @@
     {
       "id": "fact_e481dfc3",
       "type": "project",
-      "statement": "Built data-lineage-toolkit: Open lineage platform for dependable data operations.",
+      "statement": "Works on data-lineage-toolkit",
       "normalizedData": {
         "name": "data-lineage-toolkit",
         "summary": "Open lineage platform for dependable data operations.",
         "repositoryUrl": "https://github.com/alice/data-lineage-toolkit",
         "url": "https://github.com/alice/data-lineage-toolkit",
+        "attribution": "owned",
+        "fork": false,
+        "authoredActivityCount": 3,
         "skills": [
           "data-lineage",
           "data-platform",
@@ -237,8 +349,23 @@
         ]
       },
       "status": "confirmed",
-      "confidence": 0.72,
+      "confidence": 0.83,
       "evidenceRefs": [
+        {
+          "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+          "relation": "supports",
+          "weight": 1
+        },
+        {
+          "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+          "relation": "supports",
+          "weight": 1
+        },
+        {
+          "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+          "relation": "supports",
+          "weight": 1
+        },
         {
           "evidenceId": "github:repository:alice/data-lineage-toolkit",
           "relation": "supports",
@@ -263,6 +390,7 @@
       "sourceType": "github",
       "sourceId": "alice/data-lineage-toolkit",
       "evidenceType": "repository",
+      "attribution": "owned",
       "raw": {
         "owner": "alice",
         "name": "data-lineage-toolkit",
@@ -277,7 +405,9 @@
         "languages": [
           "TypeScript",
           "Python"
-        ]
+        ],
+        "fork": false,
+        "attribution": "owned"
       },
       "normalized": {
         "canonicalName": "data-lineage-toolkit",
@@ -293,7 +423,9 @@
           "TypeScript",
           "Python"
         ],
-        "defaultBranch": "main"
+        "defaultBranch": "main",
+        "fork": false,
+        "attribution": "owned"
       },
       "sourceUri": "https://github.com/alice/data-lineage-toolkit",
       "observedAt": "2025-01-14T12:00:00.000Z",
@@ -304,10 +436,12 @@
       "sourceType": "github",
       "sourceId": "alice/data-lineage-toolkit:abc1234",
       "evidenceType": "commit",
+      "attribution": "authored",
       "raw": {
         "sha": "abc1234",
         "message": "Document lineage ingestion boundaries",
         "author": "Alice Example",
+        "authorLogin": "alice",
         "date": "2025-01-13T09:00:00.000Z",
         "htmlUrl": "https://github.com/alice/data-lineage-toolkit/commit/abc1234"
       },
@@ -315,7 +449,9 @@
         "repository": "alice/data-lineage-toolkit",
         "sha": "abc1234",
         "summary": "Document lineage ingestion boundaries",
-        "author": "Alice Example"
+        "author": "Alice Example",
+        "authorLogin": "alice",
+        "attribution": "authored"
       },
       "sourceUri": "https://github.com/alice/data-lineage-toolkit/commit/abc1234",
       "observedAt": "2025-01-13T09:00:00.000Z",
@@ -326,17 +462,21 @@
       "sourceType": "github",
       "sourceId": "alice/data-lineage-toolkit:issue:18",
       "evidenceType": "issue",
+      "attribution": "authored",
       "raw": {
         "number": 18,
         "title": "Define upstream ownership metadata",
         "state": "closed",
+        "authorLogin": "alice",
         "htmlUrl": "https://github.com/alice/data-lineage-toolkit/issues/18"
       },
       "normalized": {
         "repository": "alice/data-lineage-toolkit",
         "number": 18,
         "title": "Define upstream ownership metadata",
-        "state": "closed"
+        "state": "closed",
+        "authorLogin": "alice",
+        "attribution": "authored"
       },
       "sourceUri": "https://github.com/alice/data-lineage-toolkit/issues/18",
       "observedAt": "2025-01-12T09:00:00.000Z",
@@ -347,11 +487,17 @@
       "sourceType": "github",
       "sourceId": "alice/data-lineage-toolkit:pull-request:27",
       "evidenceType": "pull-request",
+      "attribution": "authored",
+      "externalContribution": false,
       "raw": {
         "number": 27,
         "title": "Add source ownership graph",
         "state": "closed",
         "merged": true,
+        "authorLogin": "alice",
+        "createdAt": "2025-01-10T10:00:00.000Z",
+        "updatedAt": "2025-01-14T10:00:00.000Z",
+        "mergedAt": "2025-01-14T10:00:00.000Z",
         "htmlUrl": "https://github.com/alice/data-lineage-toolkit/pull/27"
       },
       "normalized": {
@@ -359,7 +505,14 @@
         "number": 27,
         "title": "Add source ownership graph",
         "state": "closed",
-        "merged": true
+        "merged": true,
+        "authorLogin": "alice",
+        "createdAt": "2025-01-10T10:00:00.000Z",
+        "updatedAt": "2025-01-14T10:00:00.000Z",
+        "mergedAt": "2025-01-14T10:00:00.000Z",
+        "attribution": "authored",
+        "externalContribution": false,
+        "repositoryUrl": "https://github.com/alice/data-lineage-toolkit"
       },
       "sourceUri": "https://github.com/alice/data-lineage-toolkit/pull/27",
       "observedAt": "2025-01-14T10:00:00.000Z",
@@ -387,8 +540,10 @@
         ],
         "tags": [
           "v1.0.0"
-        ]
+        ],
+        "attribution": "owned"
       },
+      "attribution": "owned",
       "normalized": {
         "canonicalName": "data-lineage-toolkit",
         "name": "data-lineage-toolkit",
@@ -413,7 +568,8 @@
         "skills": [
           "Python",
           "TypeScript"
-        ]
+        ],
+        "attribution": "owned"
       },
       "sourceUri": "https://github.com/alice/data-lineage-toolkit",
       "observedAt": "2025-01-14T12:00:00.000Z",

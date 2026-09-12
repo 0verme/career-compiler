@@ -36,7 +36,17 @@ describe('Local Git source', () => {
     await git(repository, ['commit', '-m', 'Add metadata fixture']);
 
     const source = new LocalGitSource();
-    const context = { now: '2025-01-15T00:00:00.000Z' };
+    const context = {
+      now: '2025-01-15T00:00:00.000Z',
+      identity: {
+        sources: [{
+          provider: 'git',
+          externalId: 'test@example.invalid',
+          names: ['Synthetic Test'],
+          emails: ['test@example.invalid']
+        }]
+      }
+    };
     const discovery = await source.discover({ directory: root }, context);
     const scan = await source.scan(discovery, context);
     const evidence = await source.extractEvidence(scan, context);
@@ -46,10 +56,18 @@ describe('Local Git source', () => {
     expect(repositoryEvidence?.normalized).toMatchObject({
       name: 'lineage-toolkit',
       languages: ['TypeScript'],
-      currentBranch: expect.any(String)
+      currentBranch: expect.any(String),
+      attribution: 'contributed',
+      authoredActivityCount: 1
     });
+    expect(repositoryEvidence?.attribution).toBe('contributed');
     expect(repositoryEvidence?.raw).not.toHaveProperty('SHOULD_NOT_BE_READ');
     expect(evidence.some((item) => item.evidenceType === 'commit')).toBe(true);
+    expect(evidence.find((item) => item.evidenceType === 'commit')?.attribution).toBe('authored');
+    expect(evidence.find((item) => item.evidenceType === 'commit')?.normalized).toMatchObject({
+      authorEmail: 'test@example.invalid',
+      attribution: 'authored'
+    });
 
     const allowlisted = await source.discover(
       { directory: root, policy: { allowlist: ['lineage-toolkit'] } },

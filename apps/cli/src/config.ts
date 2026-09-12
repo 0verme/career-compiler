@@ -1,7 +1,11 @@
 import { access, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
-import type { ScannerPolicy } from '@career-compiler/core';
+import type {
+  CareerIdentity,
+  ScannerPolicy,
+  SourceIdentity
+} from '@career-compiler/core';
 import { DEFAULT_SCANNER_POLICY } from '@career-compiler/core';
 import { getDefaultDataDirectory } from '@career-compiler/storage';
 
@@ -14,10 +18,20 @@ export interface CareerCompilerConfig {
     about?: string;
   };
   github?: {
+    /** Legacy location; prefer identity.githubUsername. */
+    username?: string;
     tokenEnv?: string;
     apiBaseUrl?: string;
     maxRepositories?: number;
     maxActivityItems?: number;
+    maxExternalContributions?: number;
+  };
+  identity?: {
+    githubUsername?: string;
+    git?: {
+      authorNames?: string[];
+      authorEmails?: string[];
+    };
   };
   scanner?: Partial<ScannerPolicy>;
 }
@@ -41,10 +55,27 @@ function positiveInteger(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
 }
 
+function nonNegativeInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const values = value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  return values.length > 0 ? [...new Set(values.map((item) => item.trim()))] : [];
+}
+
 function parseConfig(value: unknown): CareerCompilerConfig {
   const root = objectValue(value) ?? {};
   const profile = objectValue(root.profile);
   const github = objectValue(root.github);
+  const identity = objectValue(root.identity);
+  const gitIdentity = objectValue(identity?.git);
+  const githubUsername = stringValue(identity?.githubUsername) ?? stringValue(github?.username);
+  const authorNames = stringArray(gitIdentity?.authorNames);
+  const authorEmails = stringArray(gitIdentity?.authorEmails);
   const scanner = objectValue(root.scanner);
   return {
     ...(stringValue(root.dataDir) ? { dataDir: stringValue(root.dataDir) } : {}),
@@ -61,6 +92,7 @@ function parseConfig(value: unknown): CareerCompilerConfig {
     ...(github
       ? {
           github: {
+            ...(githubUsername ? { username: githubUsername } : {}),
             ...(stringValue(github.tokenEnv) ? { tokenEnv: stringValue(github.tokenEnv) } : {}),
             ...(stringValue(github.apiBaseUrl) ? { apiBaseUrl: stringValue(github.apiBaseUrl) } : {}),
             ...(positiveInteger(github.maxRepositories)
@@ -68,6 +100,24 @@ function parseConfig(value: unknown): CareerCompilerConfig {
               : {}),
             ...(positiveInteger(github.maxActivityItems)
               ? { maxActivityItems: positiveInteger(github.maxActivityItems) }
+              : {}),
+            ...(nonNegativeInteger(github.maxExternalContributions) !== undefined
+              ? { maxExternalContributions: nonNegativeInteger(github.maxExternalContributions) }
+              : {})
+          }
+        }
+      : {}),
+    ...(githubUsername || authorNames !== undefined || authorEmails !== undefined
+      ? {
+          identity: {
+            ...(githubUsername ? { githubUsername } : {}),
+            ...(authorNames !== undefined || authorEmails !== undefined
+              ? {
+                  git: {
+                    ...(authorNames !== undefined ? { authorNames } : {}),
+                    ...(authorEmails !== undefined ? { authorEmails } : {})
+                  }
+                }
               : {})
           }
         }
@@ -142,11 +192,32 @@ export function scannerPolicy(config: CareerCompilerConfig): ScannerPolicy {
   };
 }
 
+export function careerIdentity(config: CareerCompilerConfig): CareerIdentity | undefined {
+  const sources: SourceIdentity[] = [];
+  const githubUsername = config.identity?.githubUsername ?? config.github?.username;
+  if (githubUsername) {
+    sources.push({ provider: 'github', externalId: githubUsername, username: githubUsername });
+  }
+  const names = config.identity?.git?.authorNames ?? [];
+  const emails = config.identity?.git?.authorEmails ?? [];
+  if (names.length > 0 || emails.length > 0) {
+    sources.push({
+      provider: 'git',
+      externalId: emails[0] ?? names[0] ?? 'configured-git',
+      ...(names.length > 0 ? { names } : {}),
+      ...(emails.length > 0 ? { emails } : {})
+    });
+  }
+  return sources.length > 0 ? { sources } : undefined;
+}
+
 export function profileSeed(config: CareerCompilerConfig) {
+  const identity = careerIdentity(config);
   return {
     id: config.profile?.id ?? 'default',
     displayName: config.profile?.displayName ?? 'Career Profile',
     ...(config.profile?.headline ? { headline: config.profile.headline } : {}),
-    ...(config.profile?.about ? { about: config.profile.about } : {})
+    ...(config.profile?.about ? { about: config.profile.about } : {}),
+    ...(identity ? { identity } : {})
   };
 }

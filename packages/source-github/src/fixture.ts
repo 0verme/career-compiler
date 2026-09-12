@@ -13,6 +13,7 @@ export function createAliceGitHubFixtureEvidence(
       sourceType: 'github',
       sourceId: repositoryId,
       evidenceType: 'repository',
+      attribution: 'owned',
       raw: {
         owner: 'alice',
         name: 'data-lineage-toolkit',
@@ -20,7 +21,9 @@ export function createAliceGitHubFixtureEvidence(
         htmlUrl: repositoryUrl,
         defaultBranch: 'main',
         topics: ['data-lineage', 'data-platform', 'lakehouse'],
-        languages: ['TypeScript', 'Python']
+        languages: ['TypeScript', 'Python'],
+        fork: false,
+        attribution: 'owned'
       },
       normalized: {
         canonicalName: 'data-lineage-toolkit',
@@ -29,7 +32,9 @@ export function createAliceGitHubFixtureEvidence(
         repositoryUrl,
         topics: ['data-lineage', 'data-platform', 'lakehouse'],
         languages: ['TypeScript', 'Python'],
-        defaultBranch: 'main'
+        defaultBranch: 'main',
+        fork: false,
+        attribution: 'owned'
       },
       sourceUri: repositoryUrl,
       observedAt: '2025-01-14T12:00:00.000Z',
@@ -40,10 +45,12 @@ export function createAliceGitHubFixtureEvidence(
       sourceType: 'github',
       sourceId: `${repositoryId}:abc1234`,
       evidenceType: 'commit',
+      attribution: 'authored',
       raw: {
         sha: 'abc1234',
         message: 'Document lineage ingestion boundaries',
         author: 'Alice Example',
+        authorLogin: 'alice',
         date: '2025-01-13T09:00:00.000Z',
         htmlUrl: `${repositoryUrl}/commit/abc1234`
       },
@@ -51,7 +58,9 @@ export function createAliceGitHubFixtureEvidence(
         repository: repositoryId,
         sha: 'abc1234',
         summary: 'Document lineage ingestion boundaries',
-        author: 'Alice Example'
+        author: 'Alice Example',
+        authorLogin: 'alice',
+        attribution: 'authored'
       },
       sourceUri: `${repositoryUrl}/commit/abc1234`,
       observedAt: '2025-01-13T09:00:00.000Z',
@@ -62,17 +71,21 @@ export function createAliceGitHubFixtureEvidence(
       sourceType: 'github',
       sourceId: `${repositoryId}:issue:18`,
       evidenceType: 'issue',
+      attribution: 'authored',
       raw: {
         number: 18,
         title: 'Define upstream ownership metadata',
         state: 'closed',
+        authorLogin: 'alice',
         htmlUrl: `${repositoryUrl}/issues/18`
       },
       normalized: {
         repository: repositoryId,
         number: 18,
         title: 'Define upstream ownership metadata',
-        state: 'closed'
+        state: 'closed',
+        authorLogin: 'alice',
+        attribution: 'authored'
       },
       sourceUri: `${repositoryUrl}/issues/18`,
       observedAt: '2025-01-12T09:00:00.000Z',
@@ -83,11 +96,17 @@ export function createAliceGitHubFixtureEvidence(
       sourceType: 'github',
       sourceId: `${repositoryId}:pull-request:27`,
       evidenceType: 'pull-request',
+      attribution: 'authored',
+      externalContribution: false,
       raw: {
         number: 27,
         title: 'Add source ownership graph',
         state: 'closed',
         merged: true,
+        authorLogin: 'alice',
+        createdAt: '2025-01-10T10:00:00.000Z',
+        updatedAt: '2025-01-14T10:00:00.000Z',
+        mergedAt: '2025-01-14T10:00:00.000Z',
         htmlUrl: `${repositoryUrl}/pull/27`
       },
       normalized: {
@@ -95,7 +114,14 @@ export function createAliceGitHubFixtureEvidence(
         number: 27,
         title: 'Add source ownership graph',
         state: 'closed',
-        merged: true
+        merged: true,
+        authorLogin: 'alice',
+        createdAt: '2025-01-10T10:00:00.000Z',
+        updatedAt: '2025-01-14T10:00:00.000Z',
+        mergedAt: '2025-01-14T10:00:00.000Z',
+        attribution: 'authored',
+        externalContribution: false,
+        repositoryUrl
       },
       sourceUri: `${repositoryUrl}/pull/27`,
       observedAt: '2025-01-14T10:00:00.000Z',
