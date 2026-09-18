@@ -20,17 +20,20 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function setIfAbsent<T>(map: Map<string, T>, key: string, value: T): void {
-  if (!map.has(key)) {
-    map.set(key, value);
+function addLinkCandidate(map: Map<string, CareerFact[]>, key: string, fact: CareerFact): void {
+  const candidates = map.get(key);
+  if (candidates) {
+    candidates.push(fact);
+    return;
   }
+  map.set(key, [fact]);
 }
 
 interface AchievementLinkIndex {
-  projectsByKey: Map<string, CareerFact>;
-  projectsByName: Map<string, CareerFact>;
-  experiencesByKey: Map<string, CareerFact>;
-  experiencesByRole: Map<string, CareerFact>;
+  projectsByKey: Map<string, CareerFact[]>;
+  projectsByName: Map<string, CareerFact[]>;
+  experiencesByKey: Map<string, CareerFact[]>;
+  experiencesByRole: Map<string, CareerFact[]>;
 }
 
 function isExperienceFact(fact: CareerFact): boolean {
@@ -39,7 +42,8 @@ function isExperienceFact(fact: CareerFact): boolean {
 
 /**
  * Index confirmed project/experience facts so achievement facts can link to them.
- * Input is pre-sorted by canonical key, so the first match is deterministic.
+ * Every candidate key keeps all matches; ambiguity is resolved at lookup time and
+ * never by input order.
  */
 function buildLinkIndex(confirmedFacts: CareerFact[]): AchievementLinkIndex {
   const index: AchievementLinkIndex = {
@@ -51,10 +55,10 @@ function buildLinkIndex(confirmedFacts: CareerFact[]): AchievementLinkIndex {
   for (const fact of confirmedFacts) {
     if (fact.canonicalKey) {
       if (fact.type === 'project') {
-        setIfAbsent(index.projectsByKey, fact.canonicalKey, fact);
+        addLinkCandidate(index.projectsByKey, fact.canonicalKey, fact);
       }
       if (isExperienceFact(fact)) {
-        setIfAbsent(index.experiencesByKey, fact.canonicalKey, fact);
+        addLinkCandidate(index.experiencesByKey, fact.canonicalKey, fact);
       }
     }
     if (fact.type === 'project') {
@@ -64,36 +68,46 @@ function buildLinkIndex(confirmedFacts: CareerFact[]): AchievementLinkIndex {
       ];
       for (const name of names) {
         if (name) {
-          setIfAbsent(index.projectsByName, normalizeText(name), fact);
+          addLinkCandidate(index.projectsByName, normalizeText(name), fact);
         }
       }
     }
     if (isExperienceFact(fact)) {
       const role = asString(fact.normalizedData.role) ?? asString(fact.normalizedData.title);
       if (role) {
-        setIfAbsent(index.experiencesByRole, normalizeText(role), fact);
+        addLinkCandidate(index.experiencesByRole, normalizeText(role), fact);
       }
     }
   }
   return index;
 }
 
+/** Only an exact single match may link; zero or multiple candidates stay unresolved. */
+function uniqueCandidate(candidates: CareerFact[] | undefined): CareerFact | undefined {
+  if (!candidates || candidates.length !== 1) {
+    return undefined;
+  }
+  return candidates[0];
+}
+
 function linkedProject(index: AchievementLinkIndex, fact: CareerFact): CareerFact | undefined {
   const key = asString(fact.normalizedData.projectKey);
+  if (key && index.projectsByKey.has(key)) {
+    // An exact key is authoritative; conflicting facts with the same key stay unresolved.
+    return uniqueCandidate(index.projectsByKey.get(key));
+  }
   const name = asString(fact.normalizedData.projectName);
-  return (
-    (key ? index.projectsByKey.get(key) : undefined) ??
-    (name ? index.projectsByName.get(normalizeText(name)) : undefined)
-  );
+  return name ? uniqueCandidate(index.projectsByName.get(normalizeText(name))) : undefined;
 }
 
 function linkedExperience(index: AchievementLinkIndex, fact: CareerFact): CareerFact | undefined {
   const key = asString(fact.normalizedData.experienceKey);
+  if (key && index.experiencesByKey.has(key)) {
+    // An exact key is authoritative; conflicting facts with the same key stay unresolved.
+    return uniqueCandidate(index.experiencesByKey.get(key));
+  }
   const role = asString(fact.normalizedData.experienceRole);
-  return (
-    (key ? index.experiencesByKey.get(key) : undefined) ??
-    (role ? index.experiencesByRole.get(normalizeText(role)) : undefined)
-  );
+  return role ? uniqueCandidate(index.experiencesByRole.get(normalizeText(role))) : undefined;
 }
 
 function mergeFactRef(target: Map<string, CareerAchievementFactRef>, ref: CareerAchievementFactRef): void {
@@ -124,18 +138,18 @@ function achievementFromFact(
 
   const factRefs = new Map<string, CareerAchievementFactRef>();
   mergeFactRef(factRefs, { factId: fact.id, relation: 'derived-from', contributes });
+  // Only facts that substantiate a component contribute evidence. Context facts stay
+  // traceable through their context factRef and must not widen the direct evidence set.
   const evidenceRefs: CareerEvidenceRef[] = [...fact.evidenceRefs];
 
   const project = linkedProject(index, fact);
   if (project) {
     mergeFactRef(factRefs, { factId: project.id, relation: 'context', contributes: [] });
-    evidenceRefs.push(...project.evidenceRefs);
   }
 
   const experience = linkedExperience(index, fact);
   if (experience) {
     mergeFactRef(factRefs, { factId: experience.id, relation: 'context', contributes: [] });
-    evidenceRefs.push(...experience.evidenceRefs);
   }
 
   return {
@@ -160,6 +174,11 @@ function achievementFromFact(
  * - Component values are copied verbatim (trimmed) from fact normalizedData. Missing
  *   components stay absent; nothing is synthesized or inferred.
  * - A unit always carries factRefs and evidenceRefs so every claim stays traceable.
+ * - Project/experience links resolve only through an exact unique canonical key or a
+ *   unique confirmed name/role candidate; ambiguous matches stay empty instead of
+ *   picking by input order.
+ * - evidenceRefs is the evidence union of facts that contribute components; context
+ *   fact evidence remains reachable via factRefs → context fact → fact.evidenceRefs.
  */
 export function compileAchievements(facts: CareerFact[]): CareerAchievement[] {
   const confirmedFacts = facts

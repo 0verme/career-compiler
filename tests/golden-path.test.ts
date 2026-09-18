@@ -61,6 +61,21 @@ describe('Alice golden path: Evidence → Fact → Achievement → Career IR →
       }
     }
 
+    // Direct evidence is the union of contributing facts; context evidence stays on
+    // the context fact and remains reachable through the context factRef.
+    for (const achievement of ir.profile.achievements) {
+      const unitEvidenceIds = achievement.evidenceRefs.map((item) => item.evidenceId);
+      for (const reference of achievement.factRefs) {
+        if (reference.relation === 'context') {
+          continue;
+        }
+        const fact = ir.facts.find((item) => item.id === reference.factId);
+        for (const evidenceRef of fact?.evidenceRefs ?? []) {
+          expect(unitEvidenceIds).toContain(evidenceRef.evidenceId);
+        }
+      }
+    }
+
     // One project can carry multiple achievements.
     const projectId = ir.profile.projects[0]?.id;
     expect(projectId).toBeDefined();

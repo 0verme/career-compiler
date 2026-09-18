@@ -73,9 +73,9 @@ Problem → Constraint → Decision → Action → Result
 
 - `statement` 以及可选的 `problem` / `constraint` / `decision` / `action` / `result` / `metric`；
 - `status: "confirmed"`：只有 confirmed facts 能产生正式 Achievement，candidate 内容留在 Fact 层；
-- `factRefs`：每条 fact 支撑哪些组件（`contributes`）；project/experience 关联使用 `relation: "context"`；
-- `evidenceRefs`：所有 contributing confirmed facts 的 evidence 并集；
-- 可选 `projectId` / `experienceId`：由 canonicalKey 或 name/role 确定性解析，解析不到即留空。
+- `factRefs`：每条 fact 支撑哪些组件（`contributes`）；project/experience 关联使用 `relation: "context"`，且 context 的 `contributes` 必须为空；非 context 的 factRef 必须至少声明一个组件；
+- `evidenceRefs`：直接支撑组件的 contributing confirmed facts 的 evidence 并集；context fact 的 evidence 不混入，仍可经 `factRefs` → context fact → `fact.evidenceRefs` 追踪；
+- 可选 `projectId` / `experienceId`：由 canonicalKey 或 name/role 确定性解析，且必须能由某条 context factRef 推导出来；解析不到即留空。
 
 编译规则（`compileAchievements`）：
 
@@ -83,8 +83,11 @@ Problem → Constraint → Decision → Action → Result
 - `achievement` / `metric` facts 是 Achievement 来源，`project` / `experience` / `role` facts 只作为关联对象；
 - 组件值只从 fact `normalizedData` 原样 trim，缺什么就是空什么；
 - 禁止生成数字、结果、因果关系、技术决策，禁止跨 fact 拼接句子；
+- 关联解析不得依赖排序：canonical key 精确匹配优先；name / role fallback 只在唯一 confirmed candidate 时关联；0 个或多个候选（重名、重复 canonicalKey）一律留空；
 - 一个 Project / Experience 可以承载多个 Achievement；
 - 相同 facts 输入必须产生相同 ID、顺序和内容。
+
+`validateCareerIR()` 强制 component-level provenance：`contributes` 声明的每个组件必须与来源 confirmed fact 的原始值逐字段相等（`statement` 对应 `fact.statement`，其余对应 `fact.normalizedData[...]`）。fact 缺少被声明的组件、`context` 带 `contributes`、非 context 无 `contributes`、没有任何 factRef 声明 `statement`、`projectId` / `experienceId` 无 context factRef 支撑、或 contributing fact 的 evidence 缺失，都会被拒绝。
 
 Fact 描述 claim，Achievement 是 claim 的结构化单元，Resume Bullet 只是该单元的 presentation。Renderer 不允许用 fact 自己猜 Achievement。
 
@@ -127,6 +130,6 @@ discover(request) → scan(discovery) → extractEvidence(scan)
 
 - `CareerAchievement.factIds` 迁移为 `factRefs`（`relation: "derived-from"`，`contributes` 至少包含 `statement`，存在 `metric` 时包含 `metric`）；
 - 旧 Achievement 标记为 `status: "confirmed"`，因为 V0.1 的 profile projection 只消费 confirmed facts；
-- 迁移结果按 0.2 规则重新校验：Achievement 必须引用 IR 内存在的 confirmed fact，且其 evidence 必须存在。
+- 迁移结果按 0.2 规则重新校验：Achievement 必须引用 IR 内存在的 confirmed fact，且其 evidence 必须存在；`contributes` 声明的组件必须与来源 fact 的原始值逐字段相等。
 
 `parseCareerIR` 接受 0.1 与 0.2；`serializeCareerIR` 始终输出当前版本。未知版本应拒绝导入，而不是静默丢字段。没有 provenance 的 Achievement（例如 legacy `factIds` 为空）会被拒绝，而不是自动补造。
