@@ -109,4 +109,18 @@ describe('CareerIR schema migration', () => {
     document.facts = [{ ...facts[0]!, status: 'candidate' }];
     expect(() => parseCareerIR(JSON.stringify(document))).toThrow(/non-confirmed fact/);
   });
+
+  it('rejects a migrated 0.1 achievement whose statement diverges from its fact', () => {
+    const document = legacyDocument({ achievement: { statement: 'Rewritten by hand' } });
+    expect(() => parseCareerIR(JSON.stringify(document))).toThrow(
+      /statement does not match contributing fact/
+    );
+  });
+
+  it('rejects a migrated 0.1 achievement whose metric diverges from its fact', () => {
+    const document = legacyDocument({ achievement: { metric: '90%' } });
+    expect(() => parseCareerIR(JSON.stringify(document))).toThrow(
+      /metric does not match contributing fact/
+    );
+  });
 });

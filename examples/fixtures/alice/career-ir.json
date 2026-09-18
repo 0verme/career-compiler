@@ -298,31 +298,6 @@
             "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
             "relation": "derived-from",
             "weight": 0.7
-          },
-          {
-            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "github:repository:alice/data-lineage-toolkit",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
-            "relation": "supports",
-            "weight": 1
           }
         ]
       },
@@ -385,31 +360,6 @@
             "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
             "relation": "derived-from",
             "weight": 0.7
-          },
-          {
-            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "github:repository:alice/data-lineage-toolkit",
-            "relation": "supports",
-            "weight": 1
-          },
-          {
-            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
-            "relation": "supports",
-            "weight": 1
           }
         ]
       }

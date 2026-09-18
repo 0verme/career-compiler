@@ -153,7 +153,7 @@ export type CareerAchievementComponent =
 export interface CareerAchievementFactRef {
   factId: string;
   relation: Extract<EvidenceRelation, 'derived-from' | 'supports' | 'context'>;
-  /** Components this fact substantiates; project/experience context links may be empty. */
+  /** Components this fact substantiates; context links must keep this empty. */
   contributes: CareerAchievementComponent[];
 }
 
@@ -177,6 +177,10 @@ export interface CareerAchievement {
   experienceId?: string;
   status: CareerAchievementStatus;
   factRefs: CareerAchievementFactRef[];
+  /**
+   * Evidence union of the confirmed facts that substantiate components. Context-link
+   * evidence stays reachable through `factRefs` → context fact → `fact.evidenceRefs`.
+   */
   evidenceRefs: CareerEvidenceRef[];
 }
 

@@ -1,6 +1,7 @@
 import type {
   CareerAchievement,
   CareerAchievementComponent,
+  CareerAchievementFactRef,
   CareerEvidence,
   CareerEvidenceRef,
   CareerFact,
@@ -14,6 +15,7 @@ import type {
   JsonValue
 } from './types.js';
 import { CAREER_IR_SCHEMA_VERSION } from './types.js';
+import { experienceIdFromFact, projectIdFromFact } from './ids.js';
 
 export class DomainValidationError extends Error {
   constructor(message: string) {
@@ -284,7 +286,29 @@ export function validateCareerAchievement(value: unknown): CareerAchievement {
         `achievement.factRefs[${index}].contributes must be achievement components`
       );
     }
+    if (reference.relation === 'context') {
+      if (reference.contributes.length > 0) {
+        throw new DomainValidationError(
+          `achievement.factRefs[${index}] is a context link and must not contribute components`
+        );
+      }
+      return;
+    }
+    if (reference.contributes.length === 0) {
+      throw new DomainValidationError(
+        `achievement.factRefs[${index}] must contribute at least one component`
+      );
+    }
   });
+  const contributesStatement = achievement.factRefs.some(
+    (reference) =>
+      reference.relation !== 'context' && reference.contributes.includes('statement')
+  );
+  if (!contributesStatement) {
+    throw new DomainValidationError(
+      'achievement.factRefs must contain a fact that contributes the statement'
+    );
+  }
   if (!Array.isArray(achievement.evidenceRefs) || achievement.evidenceRefs.length === 0) {
     throw new DomainValidationError(
       'achievement.evidenceRefs must contain at least one evidence reference'
@@ -297,6 +321,93 @@ export function validateCareerAchievement(value: unknown): CareerAchievement {
 /** Validates the renderer-facing profile without requiring the full IR provenance document. */
 export function validateCareerProfile(value: unknown): CareerProfile {
   return validateProfile(value);
+}
+
+function factComponentValue(fact: CareerFact, component: string): string | undefined {
+  const value = fact.normalizedData[component];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/**
+ * Component-level provenance invariant: a fact may only substantiate the values it
+ * actually carries, and the achievement must copy them verbatim (trimmed).
+ */
+function assertContributionMatchesFact(
+  achievement: CareerAchievement,
+  reference: CareerAchievementFactRef,
+  fact: CareerFact
+): void {
+  for (const component of reference.contributes) {
+    if (component === 'statement') {
+      if (achievement.statement !== fact.statement) {
+        throw new DomainValidationError(
+          `achievement ${achievement.id} statement does not match contributing fact ${fact.id}`
+        );
+      }
+      continue;
+    }
+    const value = factComponentValue(fact, component);
+    if (value === undefined) {
+      throw new DomainValidationError(
+        `achievement ${achievement.id} claims ${component} from fact ${fact.id}, but the fact does not provide ${component}`
+      );
+    }
+    if (achievement[component] !== value) {
+      throw new DomainValidationError(
+        `achievement ${achievement.id} ${component} does not match contributing fact ${fact.id}`
+      );
+    }
+  }
+}
+
+function isExperienceFact(fact: CareerFact): boolean {
+  return fact.type === 'experience' || fact.type === 'role';
+}
+
+function hasContextFact(
+  achievement: CareerAchievement,
+  factsById: Map<string, CareerFact>,
+  matches: (fact: CareerFact) => boolean
+): boolean {
+  return achievement.factRefs.some((reference) => {
+    if (reference.relation !== 'context') {
+      return false;
+    }
+    const fact = factsById.get(reference.factId);
+    return fact !== undefined && matches(fact);
+  });
+}
+
+/** A renderer-facing association must be derivable from a context fact reference. */
+function assertAssociationIsBacked(
+  achievement: CareerAchievement,
+  factsById: Map<string, CareerFact>
+): void {
+  if (
+    achievement.projectId !== undefined &&
+    !hasContextFact(
+      achievement,
+      factsById,
+      (fact) => fact.type === 'project' && projectIdFromFact(fact) === achievement.projectId
+    )
+  ) {
+    throw new DomainValidationError(
+      `achievement ${achievement.id} projectId is not backed by a context fact reference`
+    );
+  }
+  if (
+    achievement.experienceId !== undefined &&
+    !hasContextFact(
+      achievement,
+      factsById,
+      (fact) =>
+        isExperienceFact(fact) && experienceIdFromFact(fact) === achievement.experienceId
+    )
+  ) {
+    throw new DomainValidationError(
+      `achievement ${achievement.id} experienceId is not backed by a context fact reference`
+    );
+  }
 }
 
 export function validateCareerIR(value: unknown): CareerIR {
@@ -334,6 +445,9 @@ export function validateCareerIR(value: unknown): CareerIR {
     }
   }
   for (const achievement of profile.achievements) {
+    const unitEvidenceIds = new Set(
+      achievement.evidenceRefs.map((reference) => reference.evidenceId)
+    );
     for (const reference of achievement.factRefs) {
       const fact = factsById.get(reference.factId);
       if (!fact) {
@@ -346,6 +460,7 @@ export function validateCareerIR(value: unknown): CareerIR {
           `achievement ${achievement.id} references non-confirmed fact ${reference.factId}`
         );
       }
+      assertContributionMatchesFact(achievement, reference, fact);
     }
     for (const reference of achievement.evidenceRefs) {
       if (!evidenceIds.has(reference.evidenceId)) {
@@ -354,6 +469,23 @@ export function validateCareerIR(value: unknown): CareerIR {
         );
       }
     }
+    // Facts that substantiate components must keep their evidence at the unit level.
+    // Extra evidence (for example context evidence in pre-hardening 0.2 documents)
+    // stays valid; context facts are only traceable through their context factRef.
+    for (const reference of achievement.factRefs) {
+      if (reference.relation === 'context') {
+        continue;
+      }
+      const fact = factsById.get(reference.factId);
+      for (const evidenceRef of fact?.evidenceRefs ?? []) {
+        if (!unitEvidenceIds.has(evidenceRef.evidenceId)) {
+          throw new DomainValidationError(
+            `achievement ${achievement.id} is missing evidence ${evidenceRef.evidenceId} of contributing fact ${reference.factId}`
+          );
+        }
+      }
+    }
+    assertAssociationIsBacked(achievement, factsById);
   }
   return ir as CareerIR;
 }
