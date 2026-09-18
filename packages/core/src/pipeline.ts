@@ -1,7 +1,5 @@
 import type {
-  CareerAchievement,
   CareerEvidence,
-  CareerEvidenceRef,
   CareerExperience,
   CareerFact,
   CareerIR,
@@ -9,16 +7,25 @@ import type {
   CareerProfile,
   CareerProject,
   CareerSkill,
-  JsonObject,
-  SourceType
+  JsonObject
 } from './types.js';
 import { CAREER_IR_SCHEMA_VERSION } from './types.js';
+import { compileAchievements } from './achievements.js';
+import {
+  createStableId,
+  dedupeEvidenceRefs,
+  experienceIdFromFact,
+  normalizeText,
+  projectIdFromFact
+} from './ids.js';
 import {
   isEvidenceAttribution,
   validateCareerEvidence,
   validateCareerFact,
   validateCareerIR
 } from './validation.js';
+
+export { createEvidenceId, createStableId, normalizeText } from './ids.js';
 
 export interface ProfileSeed {
   id: string;
@@ -33,31 +40,6 @@ export interface BuildCareerIRInput {
   facts: CareerFact[];
   evidence: CareerEvidence[];
   exportedAt?: string;
-}
-
-function stableHash(value: string): string {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
-export function createStableId(prefix: string, value: string): string {
-  return `${prefix}_${stableHash(value)}`;
-}
-
-export function normalizeText(value: string): string {
-  return value.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-export function createEvidenceId(
-  sourceType: SourceType,
-  sourceId: string,
-  evidenceType: string
-): string {
-  return `${sourceType}:${evidenceType}:${sourceId}`;
 }
 
 function asString(value: unknown): string | undefined {
@@ -201,17 +183,6 @@ function contributionFactFromAuthoredCommits(
 
 function dedupeStrings(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function dedupeEvidenceRefs(refs: CareerEvidenceRef[]): CareerEvidenceRef[] {
-  const byId = new Map<string, CareerEvidenceRef>();
-  for (const ref of refs) {
-    const previous = byId.get(ref.evidenceId);
-    if (!previous || (ref.weight ?? 0) > (previous.weight ?? 0)) {
-      byId.set(ref.evidenceId, { ...ref });
-    }
-  }
-  return [...byId.values()].sort((left, right) => left.evidenceId.localeCompare(right.evidenceId));
 }
 
 function factFromRepositoryEvidence(
@@ -381,7 +352,7 @@ function projectFromFact(fact: CareerFact): CareerProject {
   const repositoryUrl = asString(data.repositoryUrl);
   const url = asString(data.url) ?? repositoryUrl;
   return {
-    id: createStableId('project', fact.canonicalKey ?? fact.id),
+    id: projectIdFromFact(fact),
     name,
     ...(summary ? { summary } : {}),
     ...(url ? { url } : {}),
@@ -397,7 +368,7 @@ function experienceFromFact(fact: CareerFact): CareerExperience {
   const role = asString(data.role) ?? asString(data.title) ?? fact.statement;
   const organization = asString(data.organization) ?? asString(data.company);
   return {
-    id: createStableId('experience', fact.canonicalKey ?? fact.id),
+    id: experienceIdFromFact(fact),
     ...(organization ? { organization } : {}),
     role,
     ...(asString(data.summary) ? { summary: asString(data.summary) } : { summary: fact.statement }),
@@ -451,18 +422,6 @@ function skillsFromFacts(projectFacts: CareerFact[], explicitSkillFacts: CareerF
   return sortByLabel([...byName.values()]);
 }
 
-function achievementFromFact(fact: CareerFact): CareerAchievement {
-  const data = fact.normalizedData;
-  const metric = asString(data.metric);
-  return {
-    id: createStableId('achievement', fact.canonicalKey ?? fact.id),
-    statement: fact.statement,
-    ...(metric ? { metric } : {}),
-    factIds: [fact.id],
-    evidenceRefs: dedupeEvidenceRefs(fact.evidenceRefs)
-  };
-}
-
 function sortByLabel<T extends { name?: string; role?: string; statement?: string }>(items: T[]): T[] {
   return [...items].sort((left, right) =>
     (left.name ?? left.role ?? left.statement ?? '').localeCompare(
@@ -487,9 +446,7 @@ export function buildCareerProfile(
     projectFacts,
     confirmedFacts.filter((fact) => fact.type === 'skill')
   );
-  const achievements = confirmedFacts
-    .filter((fact) => fact.type === 'achievement' || fact.type === 'metric')
-    .map(achievementFromFact);
+  const achievements = compileAchievements(facts);
 
   return {
     id: seed.id,

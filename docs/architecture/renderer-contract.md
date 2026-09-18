@@ -25,6 +25,8 @@ V0.1 的两个 renderer 也接受 `CareerProfile` 作为 convenience input，并
 
 - Renderer 只消费 `CareerIR.profile` 的规范化 profile projection。
 - Renderer 不查询 SQLite、不调用 Source、不调用 AI。
+- Renderer 不把 `CareerFact` 编译成 `CareerAchievement`；Achievement 由 Core 在 IR 构建时生成。
+- Achievement section 只呈现 `CareerProfile.achievements` 中已存在的组件（`problem` / `constraint` / `decision` / `action` / `result`），不推断、不补全。
 - Renderer 不读取 candidate/rejected facts 来填充输出。
 - 输出不包含动态生成时间，确保相同 IR 产生相同 Markdown。
 - template 是 presentation extension；`{{name}}`、`{{projects}}` 等 token 不改变 Core 数据。

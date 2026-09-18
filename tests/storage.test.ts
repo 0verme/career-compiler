@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildCareerIR,
@@ -38,10 +39,84 @@ describe('SQLite repository', () => {
     expect(repository.listEvidence('github')).toHaveLength(4);
     expect(repository.listFacts('confirmed')).toHaveLength(1);
     expect(repository.getFact(facts[0]!.id)?.evidenceRefs.map((ref) => ref.evidenceId)).toContain(evidence[0]!.id);
-    expect(repository.loadCareerIR('alice')?.schemaVersion).toBe('0.1');
+    expect(repository.loadCareerIR('alice')?.schemaVersion).toBe('0.2');
 
     const serialized = serializeCareerIR(ir);
     expect(parseCareerIR(serialized).profile.displayName).toBe('Alice Example');
+    repository.close();
+  });
+
+  it('loads and migrates a persisted 0.1 IR document to 0.2', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'career-compiler-test-'));
+    temporaryDirectories.push(directory);
+    const filePath = join(directory, 'career.sqlite');
+    const repository = new SQLiteCareerRepository({ filePath });
+    const legacy = {
+      kind: 'career-ir',
+      schemaVersion: '0.1',
+      exportedAt: '2025-01-15T00:00:00.000Z',
+      profile: {
+        id: 'alice',
+        displayName: 'Alice Example',
+        experiences: [],
+        projects: [],
+        skills: [],
+        achievements: [
+          {
+            id: 'achievement_legacy',
+            statement: 'Cut lineage onboarding time',
+            metric: '6 weeks to 1 week',
+            factIds: ['fact_legacy'],
+            evidenceRefs: [
+              { evidenceId: 'chat:conversation:legacy', relation: 'derived-from', weight: 0.8 }
+            ]
+          }
+        ],
+        generatedAt: '2025-01-15T00:00:00.000Z'
+      },
+      facts: [
+        {
+          id: 'fact_legacy',
+          type: 'achievement',
+          statement: 'Cut lineage onboarding time',
+          normalizedData: { metric: '6 weeks to 1 week' },
+          status: 'confirmed',
+          confidence: 0.8,
+          evidenceRefs: [
+            { evidenceId: 'chat:conversation:legacy', relation: 'derived-from', weight: 0.8 }
+          ],
+          canonicalKey: 'achievement:block:legacy',
+          createdAt: '2025-01-15T00:00:00.000Z',
+          updatedAt: '2025-01-15T00:00:00.000Z',
+          confirmedAt: '2025-01-15T00:00:00.000Z',
+          confirmedBy: 'test'
+        }
+      ],
+      evidence: [
+        {
+          id: 'chat:conversation:legacy',
+          sourceType: 'chat',
+          sourceId: 'conversation:legacy',
+          evidenceType: 'conversation',
+          raw: { text: 'legacy' },
+          normalized: { text: 'legacy' },
+          discoveredAt: '2025-01-15T00:00:00.000Z'
+        }
+      ]
+    };
+    const database = new DatabaseSync(filePath);
+    database
+      .prepare(
+        'INSERT INTO profiles (profile_id, schema_version, document_json, updated_at) VALUES (?, ?, ?, ?)'
+      )
+      .run('alice', '0.1', JSON.stringify(legacy), '2025-01-15T00:00:00.000Z');
+    database.close();
+
+    const loaded = repository.loadCareerIR('alice');
+    expect(loaded?.schemaVersion).toBe('0.2');
+    expect(loaded?.profile.achievements[0]?.factRefs).toEqual([
+      { factId: 'fact_legacy', relation: 'derived-from', contributes: ['statement', 'metric'] }
+    ]);
     repository.close();
   });
 

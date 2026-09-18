@@ -172,8 +172,91 @@ function sentenceAround(text: string, match: RegExpMatchArray): string {
   return text.slice(start, end).trim();
 }
 
-function extractDeterministicCandidates(text: string): FactExtractionCandidate[] {
+const ACHIEVEMENT_BLOCK_FIELDS: Record<string, string> = {
+  achievement: 'statement',
+  '成就': 'statement',
+  problem: 'problem',
+  challenge: 'problem',
+  '问题': 'problem',
+  '难点': 'problem',
+  constraint: 'constraint',
+  '约束': 'constraint',
+  '限制': 'constraint',
+  decision: 'decision',
+  '决策': 'decision',
+  action: 'action',
+  '行动': 'action',
+  result: 'result',
+  outcome: 'result',
+  '结果': 'result',
+  metric: 'metric',
+  '指标': 'metric',
+  project: 'projectName',
+  '项目': 'projectName',
+  experience: 'experienceRole',
+  '经历': 'experienceRole'
+};
+
+/**
+ * Parse explicitly labeled achievement blocks from user text, e.g.
+ * `Achievement: ...` / `Problem: ...` / `Result: ...`. Blocks are copied
+ * verbatim into candidate facts; nothing is inferred or completed.
+ */
+function extractAchievementBlocks(text: string): FactExtractionCandidate[] {
+  const blocks: Array<Record<string, string>> = [];
+  let current: Record<string, string> | undefined;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const match = rawLine.match(/^\s*([^:：]{1,24}?)\s*[:：]\s*(.+?)\s*$/);
+    if (!match) {
+      continue;
+    }
+    const field = ACHIEVEMENT_BLOCK_FIELDS[match[1]!.trim().toLowerCase()];
+    const value = stringValue(match[2]);
+    if (!field || !value) {
+      continue;
+    }
+    if (field === 'statement') {
+      current = { statement: value };
+      blocks.push(current);
+    } else if (current) {
+      current[field] = value;
+    }
+  }
+
   const candidates: FactExtractionCandidate[] = [];
+  for (const block of blocks) {
+    const statement = block.statement;
+    if (!statement) {
+      continue;
+    }
+    const normalizedData: JsonObject = {};
+    for (const field of [
+      'problem',
+      'constraint',
+      'decision',
+      'action',
+      'result',
+      'metric',
+      'projectName',
+      'experienceRole'
+    ]) {
+      if (block[field]) {
+        normalizedData[field] = block[field] as string;
+      }
+    }
+    candidates.push({
+      type: 'achievement',
+      statement,
+      normalizedData,
+      confidence: 0.7,
+      canonicalKey: `achievement:block:${createStableId('claim', statement)}`
+    });
+  }
+  return candidates;
+}
+
+function extractDeterministicCandidates(text: string): FactExtractionCandidate[] {
+  const candidates: FactExtractionCandidate[] = extractAchievementBlocks(text);
   const teamMatch = text.match(/(?:led|managed|owned|负责|带领|管理|领导)[^。.!\n]{0,50}?(\d+)\s*(?:-\s*person|person|people|人)/i);
   if (teamMatch) {
     const teamSize = numberValue(Number(teamMatch[1]));
@@ -290,25 +373,67 @@ export class MockAIProvider implements AIProvider {
 export const ALICE_CONVERSATION =
   'I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.';
 
-export function createAliceChatFixtureEvidence(
-  discoveredAt = '2025-01-15T00:00:00.000Z'
+export const ALICE_ACHIEVEMENT_NOTES = `Achievement: Cut lineage onboarding time from six weeks to one week
+Project: data-lineage-toolkit
+Problem: Upstream metadata was inconsistent and column-level lineage was unreliable
+Constraint: The legacy catalog could not be replaced within the annual planning window
+Decision: We adopted an incremental contract registry instead of a full catalog migration
+Action: I implemented the ingestion contract registry and the lineage graph service
+Result: New upstream systems reached trusted lineage in under one week
+Metric: Onboarding time reduced from six weeks to one week
+
+Achievement: Scaled the lineage platform to 80 upstream systems
+Project: data-lineage-toolkit
+Problem: Lineage coverage stopped at batch ingestion and missed stream sources
+Constraint: The platform had a two-person maintenance budget
+Decision: We standardized source onboarding on declarative contracts
+Action: I rolled out the contract template to service teams and automated ownership checks
+Result: 80 upstream systems onboarded with owned metadata
+Metric: 80 upstream systems`;
+
+function aliceConversationEvidence(
+  conversationId: string,
+  text: string,
+  discoveredAt: string,
+  observedAt: string
 ): CareerEvidence {
-  const conversationId = 'alice-lineage-leadership';
   return {
     id: createEvidenceId('chat', `conversation:${conversationId}`, 'conversation'),
     sourceType: 'chat',
     sourceId: `conversation:${conversationId}`,
     evidenceType: 'conversation',
     raw: {
-      text: ALICE_CONVERSATION,
+      text,
       conversationId
     },
     normalized: {
-      text: ALICE_CONVERSATION,
+      text,
       conversationId
     },
-    observedAt: '2025-01-10T12:00:00.000Z',
+    observedAt,
     discoveredAt,
-    contentHash: createStableId('content', ALICE_CONVERSATION)
+    contentHash: createStableId('content', text)
   };
+}
+
+export function createAliceChatFixtureEvidence(
+  discoveredAt = '2025-01-15T00:00:00.000Z'
+): CareerEvidence {
+  return aliceConversationEvidence(
+    'alice-lineage-leadership',
+    ALICE_CONVERSATION,
+    discoveredAt,
+    '2025-01-10T12:00:00.000Z'
+  );
+}
+
+export function createAliceAchievementNotesEvidence(
+  discoveredAt = '2025-01-15T00:00:00.000Z'
+): CareerEvidence {
+  return aliceConversationEvidence(
+    'alice-achievement-notes',
+    ALICE_ACHIEVEMENT_NOTES,
+    discoveredAt,
+    '2025-01-11T09:00:00.000Z'
+  );
 }

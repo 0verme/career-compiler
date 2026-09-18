@@ -11,6 +11,7 @@ import {
 import { renderGitHubProfile } from '@career-compiler/renderer-github-profile';
 import { renderResume } from '@career-compiler/renderer-resume';
 import {
+  createAliceAchievementNotesEvidence,
   createAliceChatFixtureEvidence,
   DeterministicFactExtractor,
   extractionToCandidateFacts
@@ -28,11 +29,17 @@ async function writeJson(path: string, value: CareerFact[]): Promise<void> {
 
 const githubEvidence = createAliceGitHubFixtureEvidence(FIXTURE_TIME);
 const localEvidence = createAliceLocalGitFixtureEvidence(FIXTURE_TIME);
-const chatEvidence = createAliceChatFixtureEvidence(FIXTURE_TIME);
-const evidence = [...githubEvidence, ...localEvidence, chatEvidence];
+const chatEvidence = [
+  createAliceChatFixtureEvidence(FIXTURE_TIME),
+  createAliceAchievementNotesEvidence(FIXTURE_TIME)
+];
+const evidence = [...githubEvidence, ...localEvidence, ...chatEvidence];
 const extractor = new DeterministicFactExtractor();
-const extraction = await extractor.extract(chatEvidence);
-const chatCandidates = extractionToCandidateFacts(chatEvidence, extraction, FIXTURE_TIME);
+const chatCandidates: CareerFact[] = [];
+for (const item of chatEvidence) {
+  const extraction = await extractor.extract(item);
+  chatCandidates.push(...extractionToCandidateFacts(item, extraction, FIXTURE_TIME));
+}
 const sourceCandidates = deriveCandidateFacts([...githubEvidence, ...localEvidence]);
 const candidateFacts = mergeCandidateFacts([], [...sourceCandidates, ...chatCandidates]);
 const confirmedFacts = candidateFacts.map((fact) =>

@@ -5,7 +5,11 @@ import type {
   RenderedArtifact,
   RendererOptions
 } from '@career-compiler/core';
-import { validateCareerIR } from '@career-compiler/core';
+import {
+  CAREER_IR_SCHEMA_VERSION,
+  validateCareerIR,
+  validateCareerProfile
+} from '@career-compiler/core';
 
 export interface GitHubProfileRendererOptions extends RendererOptions {
   fileName?: string;
@@ -34,14 +38,14 @@ function asIR(input: CareerIR | CareerProfile): CareerIR {
   if ('kind' in input) {
     return validateCareerIR(input);
   }
-  return validateCareerIR({
+  return {
     kind: 'career-ir',
-    schemaVersion: '0.1',
+    schemaVersion: CAREER_IR_SCHEMA_VERSION,
     exportedAt: input.generatedAt,
-    profile: input,
+    profile: validateCareerProfile(input),
     facts: [],
     evidence: []
-  });
+  };
 }
 
 function applyTemplate(template: string, values: Record<string, string>): string {

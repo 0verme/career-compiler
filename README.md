@@ -13,6 +13,8 @@ GitHub + Local Git + Conversation
         ↓
    Career Facts
         ↓
+ Career Achievements
+        ↓
       Career IR
         ↓
 Resume.md + GitHub Profile README.md
@@ -21,7 +23,8 @@ Resume.md + GitHub Profile README.md
 ## V0.1 已提供
 
 - TypeScript + pnpm workspace 工程骨架
-- `CareerEvidence`、`CareerFact`、`CareerProfile`、`CareerIR` 等 Core Domain
+- `CareerEvidence`、`CareerFact`、`CareerAchievement`、`CareerProfile`、`CareerIR` 等 Core Domain
+- `Fact → Achievement` deterministic 编译层：Problem / Constraint / Decision / Action / Result 组件、component 级 `factRefs`、`evidenceRefs` 与 confirmation boundary
 - Evidence 与 Fact 的多对多 provenance link
 - `candidate` / `confirmed` / `rejected` / future statuses
 - SQLite local storage（Core 不依赖 SQLite）
@@ -32,7 +35,7 @@ Resume.md + GitHub Profile README.md
 - Manual / Chat source：deterministic/mock fact extraction 与可替换 `AIProvider` contract
 - Markdown Resume renderer
 - Markdown GitHub Profile renderer
-- versioned Career IR JSON export/import
+- versioned Career IR JSON export/import（当前 `0.2`，加载 `0.1` 文档时显式迁移）
 - Alice synthetic golden path fixture
 
 ## 快速开始
@@ -105,6 +108,7 @@ Career Compiler **不认为 repository activity == user contribution**。GitHub 
 
 - Source 只负责发现、扫描、抽取 Evidence；它不拥有 Career Facts。
 - Evidence 是观察到的 metadata，Fact 是可审阅的规范化 claim；二者分开存储。
+- Achievement 是 confirmed facts 的确定性编译单元，只负责组织结构化信息（Problem / Constraint / Decision / Action / Result）与 provenance；缺字段保持为空，不编造数字、结果或技术决策。
 - 未确认的 AI/Mock 结果只能进入 `candidate`，Profile projection 只使用 `confirmed` facts。
 - Candidate promotion 只使用高置信度 attribution；context-only repository activity 不直接产生 CareerFact。
 - AI 可以 extract、classify、summarize、suggest，但不会静默改写 confirmed history。

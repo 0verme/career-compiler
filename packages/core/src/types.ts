@@ -136,11 +136,47 @@ export interface CareerSkill {
   evidenceRefs: CareerEvidenceRef[];
 }
 
+/** Formal achievements only exist for confirmed facts; candidate content stays in facts. */
+export type CareerAchievementStatus = 'confirmed';
+
+/** The parts of a career achievement unit that a confirmed fact can substantiate. */
+export type CareerAchievementComponent =
+  | 'statement'
+  | 'problem'
+  | 'constraint'
+  | 'decision'
+  | 'action'
+  | 'result'
+  | 'metric';
+
+/** Provenance link from an achievement unit back to one confirmed CareerFact. */
+export interface CareerAchievementFactRef {
+  factId: string;
+  relation: Extract<EvidenceRelation, 'derived-from' | 'supports' | 'context'>;
+  /** Components this fact substantiates; project/experience context links may be empty. */
+  contributes: CareerAchievementComponent[];
+}
+
+/**
+ * A career achievement unit compiled from confirmed facts. Components are copied
+ * verbatim from fact normalizedData and may be absent; the compiler never invents
+ * numbers, results, causality or technical decisions.
+ */
 export interface CareerAchievement {
   id: string;
   statement: string;
+  problem?: string;
+  constraint?: string;
+  decision?: string;
+  action?: string;
+  result?: string;
   metric?: string;
-  factIds: string[];
+  /** Stable link to the confirmed project fact this unit belongs to, when resolvable. */
+  projectId?: string;
+  /** Stable link to the confirmed experience/role fact this unit belongs to, when resolvable. */
+  experienceId?: string;
+  status: CareerAchievementStatus;
+  factRefs: CareerAchievementFactRef[];
   evidenceRefs: CareerEvidenceRef[];
 }
 
@@ -161,7 +197,7 @@ export interface CareerProfile {
 /** Versioned portable document: the Career Intermediate Representation. */
 export interface CareerIR {
   kind: 'career-ir';
-  schemaVersion: '0.1';
+  schemaVersion: '0.2';
   exportedAt: string;
   profile: CareerProfile;
   facts: CareerFact[];
@@ -228,7 +264,10 @@ export interface CareerRepository {
   close(): void;
 }
 
-export const CAREER_IR_SCHEMA_VERSION = '0.1' as const;
+export const CAREER_IR_SCHEMA_VERSION = '0.2' as const;
+
+/** Previous IR schema. Parsing it migrates achievements to the 0.2 contract. */
+export const CAREER_IR_SCHEMA_VERSION_V01 = '0.1' as const;
 
 export const DEFAULT_SCANNER_POLICY: ScannerPolicy = {
   maxDepth: 3,

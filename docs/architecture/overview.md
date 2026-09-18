@@ -19,9 +19,10 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 ┌───────────────▼──────────────────────────────────────────────┐
 │ Core Domain                                                  │
 │ identity + attribution → candidate CareerFact → confirmation │
+│ Fact → CareerAchievement compiler (Problem/Constraint/…)     │
 │ CareerProject / Experience / Skill / Achievement projection   │
 └───────────────┬──────────────────────────────────────────────┘
-                │ versioned Career IR (schemaVersion: 0.1)
+                │ versioned Career IR (schemaVersion: 0.2)
 ┌───────────────▼──────────────────────────────────────────────┐
 │ Renderers                                                    │
 │ Markdown Resume · GitHub Profile README                      │
@@ -35,7 +36,7 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 
 | Module | 责任 | 不负责 |
 | --- | --- | --- |
-| `packages/core` | Domain types、validation、provenance、fact pipeline、source/renderer/repository contracts | SQLite、HTTP、LLM、CLI |
+| `packages/core` | Domain types、validation、provenance、fact pipeline、Fact → Achievement compiler、source/renderer/repository contracts | SQLite、HTTP、LLM、CLI |
 | `packages/storage` | `CareerRepository` 的 Node.js `node:sqlite` 实现、IR import/export、用户级路径 | 事实推断、渲染、网络扫描 |
 | `packages/source-github` | GitHub REST metadata adapter、identity attribution、limited external PR discovery | 把 metadata 直接变成 confirmed fact、把 repository activity 当作用户贡献 |
 | `packages/source-local-git` | 显式目录的 Git metadata scanner 与 scanner policy | 读取/上传源码、能力评分 |
@@ -50,8 +51,9 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 3. Core 只提升 owned/authored/contributed 的高置信度 evidence；context/unknown 保留为证据，不直接创建 CareerFact。
 4. Core 的 deterministic projector 或 `FactExtractor` 创建 `candidate CareerFact`。
 5. 用户通过 `facts confirm <id>` 确认；confirmed fact 的 provenance 不丢失。
-6. Core 从 confirmed facts 构建 `CareerProfile`，再封装成 versioned `CareerIR`。
-7. Renderer 只读取 Career IR 并输出 Markdown artifact。
+6. Core 的 deterministic Achievement compiler 只从 confirmed facts 构建 `CareerAchievement`（含 `factRefs` / `evidenceRefs`）；candidate 内容不会进入。
+7. Core 从 confirmed facts 构建 `CareerProfile`，再封装成 versioned `CareerIR`（当前 `0.2`）。
+8. Renderer 只读取 Career IR 并输出 Markdown artifact。
 
 ## 隐私边界
 
