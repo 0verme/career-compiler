@@ -1,6 +1,6 @@
 {
   "kind": "career-ir",
-  "schemaVersion": "0.1",
+  "schemaVersion": "0.2",
   "exportedAt": "2025-01-15T00:00:00.000Z",
   "profile": {
     "id": "alice",
@@ -263,11 +263,83 @@
     ],
     "achievements": [
       {
+        "id": "achievement_ebe485ab",
+        "statement": "Cut lineage onboarding time from six weeks to one week",
+        "problem": "Upstream metadata was inconsistent and column-level lineage was unreliable",
+        "constraint": "The legacy catalog could not be replaced within the annual planning window",
+        "decision": "We adopted an incremental contract registry instead of a full catalog migration",
+        "action": "I implemented the ingestion contract registry and the lineage graph service",
+        "result": "New upstream systems reached trusted lineage in under one week",
+        "metric": "Onboarding time reduced from six weeks to one week",
+        "projectId": "project_e481dfc3",
+        "status": "confirmed",
+        "factRefs": [
+          {
+            "factId": "fact_e481dfc3",
+            "relation": "context",
+            "contributes": []
+          },
+          {
+            "factId": "fact_ebe485ab",
+            "relation": "derived-from",
+            "contributes": [
+              "statement",
+              "problem",
+              "constraint",
+              "decision",
+              "action",
+              "result",
+              "metric"
+            ]
+          }
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
+            "relation": "derived-from",
+            "weight": 0.7
+          },
+          {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
+      },
+      {
         "id": "achievement_b158c8c1",
         "statement": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",
         "metric": "80+ upstream systems",
-        "factIds": [
-          "fact_b158c8c1"
+        "status": "confirmed",
+        "factRefs": [
+          {
+            "factId": "fact_b158c8c1",
+            "relation": "derived-from",
+            "contributes": [
+              "statement",
+              "metric"
+            ]
+          }
         ],
         "evidenceRefs": [
           {
@@ -276,11 +348,131 @@
             "weight": 0.84
           }
         ]
+      },
+      {
+        "id": "achievement_3d60aea7",
+        "statement": "Scaled the lineage platform to 80 upstream systems",
+        "problem": "Lineage coverage stopped at batch ingestion and missed stream sources",
+        "constraint": "The platform had a two-person maintenance budget",
+        "decision": "We standardized source onboarding on declarative contracts",
+        "action": "I rolled out the contract template to service teams and automated ownership checks",
+        "result": "80 upstream systems onboarded with owned metadata",
+        "metric": "80 upstream systems",
+        "projectId": "project_e481dfc3",
+        "status": "confirmed",
+        "factRefs": [
+          {
+            "factId": "fact_3d60aea7",
+            "relation": "derived-from",
+            "contributes": [
+              "statement",
+              "problem",
+              "constraint",
+              "decision",
+              "action",
+              "result",
+              "metric"
+            ]
+          },
+          {
+            "factId": "fact_e481dfc3",
+            "relation": "context",
+            "contributes": []
+          }
+        ],
+        "evidenceRefs": [
+          {
+            "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
+            "relation": "derived-from",
+            "weight": 0.7
+          },
+          {
+            "evidenceId": "github:commit:alice/data-lineage-toolkit:abc1234",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:issue:alice/data-lineage-toolkit:issue:18",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:pull-request:alice/data-lineage-toolkit:pull-request:27",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "github:repository:alice/data-lineage-toolkit",
+            "relation": "supports",
+            "weight": 1
+          },
+          {
+            "evidenceId": "local-git:local-repository:data-lineage-toolkit:git@github.com:alice/data-lineage-toolkit.git",
+            "relation": "supports",
+            "weight": 1
+          }
+        ]
       }
     ],
     "generatedAt": "2025-01-15T00:00:00.000Z"
   },
   "facts": [
+    {
+      "id": "fact_ebe485ab",
+      "type": "achievement",
+      "statement": "Cut lineage onboarding time from six weeks to one week",
+      "normalizedData": {
+        "problem": "Upstream metadata was inconsistent and column-level lineage was unreliable",
+        "constraint": "The legacy catalog could not be replaced within the annual planning window",
+        "decision": "We adopted an incremental contract registry instead of a full catalog migration",
+        "action": "I implemented the ingestion contract registry and the lineage graph service",
+        "result": "New upstream systems reached trusted lineage in under one week",
+        "metric": "Onboarding time reduced from six weeks to one week",
+        "projectName": "data-lineage-toolkit"
+      },
+      "status": "confirmed",
+      "confidence": 0.7,
+      "evidenceRefs": [
+        {
+          "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
+          "relation": "derived-from",
+          "weight": 0.7
+        }
+      ],
+      "canonicalKey": "achievement:block:claim_1982950e",
+      "createdAt": "2025-01-15T00:00:00.000Z",
+      "updatedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedBy": "synthetic-fixture-confirmation"
+    },
+    {
+      "id": "fact_3d60aea7",
+      "type": "achievement",
+      "statement": "Scaled the lineage platform to 80 upstream systems",
+      "normalizedData": {
+        "problem": "Lineage coverage stopped at batch ingestion and missed stream sources",
+        "constraint": "The platform had a two-person maintenance budget",
+        "decision": "We standardized source onboarding on declarative contracts",
+        "action": "I rolled out the contract template to service teams and automated ownership checks",
+        "result": "80 upstream systems onboarded with owned metadata",
+        "metric": "80 upstream systems",
+        "projectName": "data-lineage-toolkit"
+      },
+      "status": "confirmed",
+      "confidence": 0.7,
+      "evidenceRefs": [
+        {
+          "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
+          "relation": "derived-from",
+          "weight": 0.7
+        }
+      ],
+      "canonicalKey": "achievement:block:claim_7a37a886",
+      "createdAt": "2025-01-15T00:00:00.000Z",
+      "updatedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedAt": "2025-01-15T00:00:00.000Z",
+      "confirmedBy": "synthetic-fixture-confirmation"
+    },
     {
       "id": "fact_b158c8c1",
       "type": "achievement",
@@ -591,6 +783,23 @@
       "observedAt": "2025-01-10T12:00:00.000Z",
       "discoveredAt": "2025-01-15T00:00:00.000Z",
       "contentHash": "content_b37bd803"
+    },
+    {
+      "id": "chat:conversation:conversation:alice-achievement-notes",
+      "sourceType": "chat",
+      "sourceId": "conversation:alice-achievement-notes",
+      "evidenceType": "conversation",
+      "raw": {
+        "text": "Achievement: Cut lineage onboarding time from six weeks to one week\nProject: data-lineage-toolkit\nProblem: Upstream metadata was inconsistent and column-level lineage was unreliable\nConstraint: The legacy catalog could not be replaced within the annual planning window\nDecision: We adopted an incremental contract registry instead of a full catalog migration\nAction: I implemented the ingestion contract registry and the lineage graph service\nResult: New upstream systems reached trusted lineage in under one week\nMetric: Onboarding time reduced from six weeks to one week\n\nAchievement: Scaled the lineage platform to 80 upstream systems\nProject: data-lineage-toolkit\nProblem: Lineage coverage stopped at batch ingestion and missed stream sources\nConstraint: The platform had a two-person maintenance budget\nDecision: We standardized source onboarding on declarative contracts\nAction: I rolled out the contract template to service teams and automated ownership checks\nResult: 80 upstream systems onboarded with owned metadata\nMetric: 80 upstream systems",
+        "conversationId": "alice-achievement-notes"
+      },
+      "normalized": {
+        "text": "Achievement: Cut lineage onboarding time from six weeks to one week\nProject: data-lineage-toolkit\nProblem: Upstream metadata was inconsistent and column-level lineage was unreliable\nConstraint: The legacy catalog could not be replaced within the annual planning window\nDecision: We adopted an incremental contract registry instead of a full catalog migration\nAction: I implemented the ingestion contract registry and the lineage graph service\nResult: New upstream systems reached trusted lineage in under one week\nMetric: Onboarding time reduced from six weeks to one week\n\nAchievement: Scaled the lineage platform to 80 upstream systems\nProject: data-lineage-toolkit\nProblem: Lineage coverage stopped at batch ingestion and missed stream sources\nConstraint: The platform had a two-person maintenance budget\nDecision: We standardized source onboarding on declarative contracts\nAction: I rolled out the contract template to service teams and automated ownership checks\nResult: 80 upstream systems onboarded with owned metadata\nMetric: 80 upstream systems",
+        "conversationId": "alice-achievement-notes"
+      },
+      "observedAt": "2025-01-11T09:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "content_97021bf7"
     }
   ]
 }

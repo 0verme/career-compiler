@@ -7,7 +7,7 @@ Career IR（Career Intermediate Representation）是 Sources 与 Renderers 之�
 ```json
 {
   "kind": "career-ir",
-  "schemaVersion": "0.1",
+  "schemaVersion": "0.2",
   "exportedAt": "2025-01-15T00:00:00.000Z",
   "profile": {},
   "facts": [],
@@ -61,6 +61,33 @@ candidate → rejected
 
 未来可以增加 `superseded` 与 `conflicted`。AI/Mock 的输出永远先进入 `candidate`；只有用户动作才能进入 `confirmed`。Core 的 profile projection 只消费 confirmed facts，因此 AI 不能静默改写已经确认的历史。
 
+### Achievement
+
+`CareerAchievement` 是 confirmed facts 的 deterministic 编译单元，用来承载一个可独立成段的职业成就：
+
+```text
+Problem → Constraint → Decision → Action → Result
+```
+
+模型至少包含：
+
+- `statement` 以及可选的 `problem` / `constraint` / `decision` / `action` / `result` / `metric`；
+- `status: "confirmed"`：只有 confirmed facts 能产生正式 Achievement，candidate 内容留在 Fact 层；
+- `factRefs`：每条 fact 支撑哪些组件（`contributes`）；project/experience 关联使用 `relation: "context"`；
+- `evidenceRefs`：所有 contributing confirmed facts 的 evidence 并集；
+- 可选 `projectId` / `experienceId`：由 canonicalKey 或 name/role 确定性解析，解析不到即留空。
+
+编译规则（`compileAchievements`）：
+
+- 只读取 confirmed facts；
+- `achievement` / `metric` facts 是 Achievement 来源，`project` / `experience` / `role` facts 只作为关联对象；
+- 组件值只从 fact `normalizedData` 原样 trim，缺什么就是空什么；
+- 禁止生成数字、结果、因果关系、技术决策，禁止跨 fact 拼接句子；
+- 一个 Project / Experience 可以承载多个 Achievement；
+- 相同 facts 输入必须产生相同 ID、顺序和内容。
+
+Fact 描述 claim，Achievement 是 claim 的结构化单元，Resume Bullet 只是该单元的 presentation。Renderer 不允许用 fact 自己猜 Achievement。
+
 ### Presentation
 
 Resume bullet、GitHub README 的 section 顺序、Markdown link 形式、面向某个职位的措辞都属于 renderer/template。它们可以重写表达，但不能创造 Core 中不存在的事实。比如“Led a 12-person team”是 fact 的 presentation；`teamSize: 12` 和对应 evidence link 才是 Core data。
@@ -82,7 +109,7 @@ Source-specific metadata 可以作为 Evidence 的 normalized payload；只有�
 
 ## Source 与 Renderer 如何解耦
 
-本轮没有新增 `contribution` fact type：external authored PR 和 fork 中明确 authored work 使用现有 `achievement` candidate 表达，确认后由现有 renderer 处理；这样保持 Career IR `schemaVersion: "0.1"`，同时保留清晰的 evidence provenance。
+本轮没有新增 `contribution` fact type：external authored PR 和 fork 中明确 authored work 使用现有 `achievement` candidate 表达，确认后由 Achievement compiler 编译为带 provenance 的 unit，再由 renderer 呈现。
 
 ## Source 实现
 
@@ -96,4 +123,10 @@ discover(request) → scan(discovery) → extractEvidence(scan)
 
 ## 迁移策略
 
-任何持久化或交换文件都必须带 `schemaVersion`。升级时增加显式 migration（例如 `0.1` → `0.2`），不要让 renderer 猜字段。未知版本应拒绝导入，而不是静默丢字段。V0.1 的 `parseCareerIR` 已对 `kind`、`schemaVersion`、evidence、facts、provenance link 做 validation。
+任何持久化或交换文件都必须带 `schemaVersion`。当前版本为 `0.2`；`0.1` → `0.2` 的迁移在解析时显式执行：
+
+- `CareerAchievement.factIds` 迁移为 `factRefs`（`relation: "derived-from"`，`contributes` 至少包含 `statement`，存在 `metric` 时包含 `metric`）；
+- 旧 Achievement 标记为 `status: "confirmed"`，因为 V0.1 的 profile projection 只消费 confirmed facts；
+- 迁移结果按 0.2 规则重新校验：Achievement 必须引用 IR 内存在的 confirmed fact，且其 evidence 必须存在。
+
+`parseCareerIR` 接受 0.1 与 0.2；`serializeCareerIR` 始终输出当前版本。未知版本应拒绝导入，而不是静默丢字段。没有 provenance 的 Achievement（例如 legacy `factIds` 为空）会被拒绝，而不是自动补造。

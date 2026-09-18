@@ -1,11 +1,16 @@
 import type {
+  CareerAchievement,
   CareerIR,
   CareerProfile,
   CareerRenderer,
   RenderedArtifact,
   RendererOptions
 } from '@career-compiler/core';
-import { validateCareerIR } from '@career-compiler/core';
+import {
+  CAREER_IR_SCHEMA_VERSION,
+  validateCareerIR,
+  validateCareerProfile
+} from '@career-compiler/core';
 
 export interface ResumeRendererOptions extends RendererOptions {
   fileName?: string;
@@ -40,14 +45,14 @@ function asIR(input: CareerIR | CareerProfile): CareerIR {
   if ('kind' in input) {
     return validateCareerIR(input);
   }
-  return validateCareerIR({
+  return {
     kind: 'career-ir',
-    schemaVersion: '0.1',
+    schemaVersion: CAREER_IR_SCHEMA_VERSION,
     exportedAt: input.generatedAt,
-    profile: input,
+    profile: validateCareerProfile(input),
     facts: [],
     evidence: []
-  });
+  };
 }
 
 function applyTemplate(template: string, values: Record<string, string>): string {
@@ -90,12 +95,29 @@ function renderSkills(profile: CareerProfile): string {
   return profile.skills.length > 0 ? profile.skills.map((skill) => `- ${skill.name}`).join('\n') : '—';
 }
 
+const ACHIEVEMENT_DETAILS: Array<[string, keyof CareerAchievement]> = [
+  ['Problem', 'problem'],
+  ['Constraint', 'constraint'],
+  ['Decision', 'decision'],
+  ['Action', 'action'],
+  ['Result', 'result']
+];
+
 function renderAchievements(profile: CareerProfile): string {
   if (profile.achievements.length === 0) {
     return '—';
   }
   return profile.achievements
-    .map((achievement) => `- ${achievement.statement}${achievement.metric ? ` (${achievement.metric})` : ''}`)
+    .map((achievement) => {
+      const head = `- ${achievement.statement}${achievement.metric ? ` (${achievement.metric})` : ''}`;
+      const details = ACHIEVEMENT_DETAILS.flatMap(([label, key]) => {
+        const value = achievement[key];
+        return typeof value === 'string' && value.trim().length > 0
+          ? [`  - ${label}: ${value}`]
+          : [];
+      });
+      return [head, ...details].join('\n');
+    })
     .join('\n');
 }
 

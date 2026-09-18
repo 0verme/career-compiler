@@ -1,5 +1,57 @@
 [
   {
+    "id": "fact_ebe485ab",
+    "type": "achievement",
+    "statement": "Cut lineage onboarding time from six weeks to one week",
+    "normalizedData": {
+      "problem": "Upstream metadata was inconsistent and column-level lineage was unreliable",
+      "constraint": "The legacy catalog could not be replaced within the annual planning window",
+      "decision": "We adopted an incremental contract registry instead of a full catalog migration",
+      "action": "I implemented the ingestion contract registry and the lineage graph service",
+      "result": "New upstream systems reached trusted lineage in under one week",
+      "metric": "Onboarding time reduced from six weeks to one week",
+      "projectName": "data-lineage-toolkit"
+    },
+    "status": "candidate",
+    "confidence": 0.7,
+    "evidenceRefs": [
+      {
+        "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
+        "relation": "derived-from",
+        "weight": 0.7
+      }
+    ],
+    "canonicalKey": "achievement:block:claim_1982950e",
+    "createdAt": "2025-01-15T00:00:00.000Z",
+    "updatedAt": "2025-01-15T00:00:00.000Z"
+  },
+  {
+    "id": "fact_3d60aea7",
+    "type": "achievement",
+    "statement": "Scaled the lineage platform to 80 upstream systems",
+    "normalizedData": {
+      "problem": "Lineage coverage stopped at batch ingestion and missed stream sources",
+      "constraint": "The platform had a two-person maintenance budget",
+      "decision": "We standardized source onboarding on declarative contracts",
+      "action": "I rolled out the contract template to service teams and automated ownership checks",
+      "result": "80 upstream systems onboarded with owned metadata",
+      "metric": "80 upstream systems",
+      "projectName": "data-lineage-toolkit"
+    },
+    "status": "candidate",
+    "confidence": 0.7,
+    "evidenceRefs": [
+      {
+        "evidenceId": "chat:conversation:conversation:alice-achievement-notes",
+        "relation": "derived-from",
+        "weight": 0.7
+      }
+    ],
+    "canonicalKey": "achievement:block:claim_7a37a886",
+    "createdAt": "2025-01-15T00:00:00.000Z",
+    "updatedAt": "2025-01-15T00:00:00.000Z"
+  },
+  {
     "id": "fact_b158c8c1",
     "type": "achievement",
     "statement": "I led a 12-person data platform team and built a lineage platform supporting more than 80 upstream systems.",

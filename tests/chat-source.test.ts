@@ -4,6 +4,7 @@ import {
   ManualChatSource,
   MockAIProvider,
   ProviderFactExtractor,
+  createAliceAchievementNotesEvidence,
   createAliceChatFixtureEvidence,
   extractionToCandidateFacts,
   validateFactExtractionOutput
@@ -17,6 +18,33 @@ describe('Manual/chat source and extraction', () => {
     expect(facts.map((fact) => fact.type)).toEqual(['experience', 'achievement']);
     expect(facts.every((fact) => fact.status === 'candidate')).toBe(true);
     expect(facts.every((fact) => fact.evidenceRefs[0]?.evidenceId === evidence.id)).toBe(true);
+  });
+
+  it('extracts labeled achievement blocks as candidate facts without inventing fields', async () => {
+    const evidence = createAliceAchievementNotesEvidence();
+    const output = await new DeterministicFactExtractor().extract(evidence);
+    const facts = extractionToCandidateFacts(evidence, output, '2025-01-15T00:00:00.000Z');
+
+    expect(facts).toHaveLength(2);
+    expect(facts.every((fact) => fact.status === 'candidate')).toBe(true);
+    expect(facts.every((fact) => fact.type === 'achievement')).toBe(true);
+
+    const onboarding = facts.find((fact) =>
+      fact.statement.startsWith('Cut lineage onboarding time')
+    );
+    expect(onboarding?.normalizedData).toEqual({
+      problem: 'Upstream metadata was inconsistent and column-level lineage was unreliable',
+      constraint: 'The legacy catalog could not be replaced within the annual planning window',
+      decision: 'We adopted an incremental contract registry instead of a full catalog migration',
+      action: 'I implemented the ingestion contract registry and the lineage graph service',
+      result: 'New upstream systems reached trusted lineage in under one week',
+      metric: 'Onboarding time reduced from six weeks to one week',
+      projectName: 'data-lineage-toolkit'
+    });
+    expect(onboarding?.evidenceRefs[0]?.evidenceId).toBe(evidence.id);
+
+    // No free-text extraction may add unrelated facts on top of the labeled blocks.
+    expect(facts.some((fact) => fact.type !== 'achievement')).toBe(false);
   });
 
   it('extracts the documented Chinese input shape deterministically', async () => {

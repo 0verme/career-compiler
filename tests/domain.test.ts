@@ -210,7 +210,7 @@ describe('Career domain pipeline', () => {
       evidence: [evidence],
       exportedAt: '2025-01-03T00:00:00.000Z'
     });
-    expect(ir.schemaVersion).toBe('0.1');
+    expect(ir.schemaVersion).toBe('0.2');
     expect(ir.profile.identity?.sources[0]?.username).toBe('alice');
     expect(ir.profile.projects[0]?.evidenceRefs[0]?.evidenceId).toBe(evidence.id);
   });

@@ -1,4 +1,6 @@
 import type {
+  CareerAchievement,
+  CareerAchievementComponent,
   CareerEvidence,
   CareerEvidenceRef,
   CareerFact,
@@ -205,8 +207,96 @@ function validateProfile(profile: unknown): CareerProfile {
   if (!Array.isArray(value.achievements)) {
     throw new DomainValidationError('profile.achievements must be an array');
   }
+  value.achievements.forEach((achievement) => validateCareerAchievement(achievement));
   assertIsoDate(value.generatedAt, 'profile.generatedAt');
   return value as CareerProfile;
+}
+
+const CAREER_ACHIEVEMENT_COMPONENTS: CareerAchievementComponent[] = [
+  'statement',
+  'problem',
+  'constraint',
+  'decision',
+  'action',
+  'result',
+  'metric'
+];
+
+export function isCareerAchievementComponent(
+  value: unknown
+): value is CareerAchievementComponent {
+  return typeof value === 'string' && CAREER_ACHIEVEMENT_COMPONENTS.includes(value as CareerAchievementComponent);
+}
+
+function assertOptionalString(value: unknown, field: string): void {
+  if (value !== undefined) {
+    assertNonEmptyString(value, field);
+  }
+}
+
+/** Validates a formal achievement unit. Only confirmed facts may produce one. */
+export function validateCareerAchievement(value: unknown): CareerAchievement {
+  if (typeof value !== 'object' || value === null) {
+    throw new DomainValidationError('CareerAchievement must be an object');
+  }
+  const achievement = value as Partial<CareerAchievement>;
+  assertNonEmptyString(achievement.id, 'achievement.id');
+  assertNonEmptyString(achievement.statement, 'achievement.statement');
+  for (const field of [
+    'problem',
+    'constraint',
+    'decision',
+    'action',
+    'result',
+    'metric',
+    'projectId',
+    'experienceId'
+  ] as const) {
+    assertOptionalString(achievement[field], `achievement.${field}`);
+  }
+  if (achievement.status !== 'confirmed') {
+    throw new DomainValidationError(
+      'achievement.status must be confirmed; candidate facts cannot produce formal achievements'
+    );
+  }
+  if (!Array.isArray(achievement.factRefs) || achievement.factRefs.length === 0) {
+    throw new DomainValidationError('achievement.factRefs must contain at least one fact reference');
+  }
+  achievement.factRefs.forEach((reference, index) => {
+    if (typeof reference !== 'object' || reference === null) {
+      throw new DomainValidationError(`achievement.factRefs[${index}] must be an object`);
+    }
+    assertNonEmptyString(reference.factId, `achievement.factRefs[${index}].factId`);
+    if (
+      reference.relation !== 'derived-from' &&
+      reference.relation !== 'supports' &&
+      reference.relation !== 'context'
+    ) {
+      throw new DomainValidationError(
+        `achievement.factRefs[${index}].relation is not supported`
+      );
+    }
+    if (
+      !Array.isArray(reference.contributes) ||
+      !reference.contributes.every(isCareerAchievementComponent)
+    ) {
+      throw new DomainValidationError(
+        `achievement.factRefs[${index}].contributes must be achievement components`
+      );
+    }
+  });
+  if (!Array.isArray(achievement.evidenceRefs) || achievement.evidenceRefs.length === 0) {
+    throw new DomainValidationError(
+      'achievement.evidenceRefs must contain at least one evidence reference'
+    );
+  }
+  achievement.evidenceRefs.forEach(assertEvidenceRef);
+  return achievement as CareerAchievement;
+}
+
+/** Validates the renderer-facing profile without requiring the full IR provenance document. */
+export function validateCareerProfile(value: unknown): CareerProfile {
+  return validateProfile(value);
 }
 
 export function validateCareerIR(value: unknown): CareerIR {
@@ -223,7 +313,7 @@ export function validateCareerIR(value: unknown): CareerIR {
     );
   }
   assertIsoDate(ir.exportedAt, 'ir.exportedAt');
-  validateProfile(ir.profile);
+  const profile = validateProfile(ir.profile);
   if (!Array.isArray(ir.evidence)) {
     throw new DomainValidationError('ir.evidence must be an array');
   }
@@ -231,12 +321,36 @@ export function validateCareerIR(value: unknown): CareerIR {
     throw new DomainValidationError('ir.facts must be an array');
   }
   const evidenceIds = new Set(ir.evidence.map((item) => validateCareerEvidence(item).id));
+  const factsById = new Map<string, CareerFact>();
   for (const fact of ir.facts) {
     const validated = validateCareerFact(fact);
+    factsById.set(validated.id, validated);
     for (const reference of validated.evidenceRefs) {
       if (!evidenceIds.has(reference.evidenceId)) {
         throw new DomainValidationError(
           `fact ${validated.id} references missing evidence ${reference.evidenceId}`
+        );
+      }
+    }
+  }
+  for (const achievement of profile.achievements) {
+    for (const reference of achievement.factRefs) {
+      const fact = factsById.get(reference.factId);
+      if (!fact) {
+        throw new DomainValidationError(
+          `achievement ${achievement.id} references missing fact ${reference.factId}`
+        );
+      }
+      if (fact.status !== 'confirmed') {
+        throw new DomainValidationError(
+          `achievement ${achievement.id} references non-confirmed fact ${reference.factId}`
+        );
+      }
+    }
+    for (const reference of achievement.evidenceRefs) {
+      if (!evidenceIds.has(reference.evidenceId)) {
+        throw new DomainValidationError(
+          `achievement ${achievement.id} references missing evidence ${reference.evidenceId}`
         );
       }
     }
@@ -246,16 +360,4 @@ export function validateCareerIR(value: unknown): CareerIR {
 
 export function serializeCareerIR(ir: CareerIR): string {
   return `${JSON.stringify(validateCareerIR(ir), null, 2)}\n`;
-}
-
-export function parseCareerIR(serialized: string): CareerIR {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(serialized) as unknown;
-  } catch (error) {
-    throw new DomainValidationError(
-      `CareerIR is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-  return validateCareerIR(parsed);
 }
