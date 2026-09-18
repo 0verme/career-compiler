@@ -22,11 +22,15 @@ function asString(value: unknown): string | undefined {
 
 function addLinkCandidate(map: Map<string, CareerFact[]>, key: string, fact: CareerFact): void {
   const candidates = map.get(key);
-  if (candidates) {
-    candidates.push(fact);
+  if (!candidates) {
+    map.set(key, [fact]);
     return;
   }
-  map.set(key, [fact]);
+  // Candidate sets count distinct facts, not field hits: one fact may expose the
+  // same normalized name through both `name` and `canonicalName`.
+  if (!candidates.some((candidate) => candidate.id === fact.id)) {
+    candidates.push(fact);
+  }
 }
 
 interface AchievementLinkIndex {
@@ -92,8 +96,9 @@ function uniqueCandidate(candidates: CareerFact[] | undefined): CareerFact | und
 
 function linkedProject(index: AchievementLinkIndex, fact: CareerFact): CareerFact | undefined {
   const key = asString(fact.normalizedData.projectKey);
-  if (key && index.projectsByKey.has(key)) {
-    // An exact key is authoritative; conflicting facts with the same key stay unresolved.
+  if (key) {
+    // An explicit key is authoritative and fail-closed: a missing or conflicted key
+    // stays unresolved instead of silently falling back to a weaker name lookup.
     return uniqueCandidate(index.projectsByKey.get(key));
   }
   const name = asString(fact.normalizedData.projectName);
@@ -102,8 +107,8 @@ function linkedProject(index: AchievementLinkIndex, fact: CareerFact): CareerFac
 
 function linkedExperience(index: AchievementLinkIndex, fact: CareerFact): CareerFact | undefined {
   const key = asString(fact.normalizedData.experienceKey);
-  if (key && index.experiencesByKey.has(key)) {
-    // An exact key is authoritative; conflicting facts with the same key stay unresolved.
+  if (key) {
+    // Same fail-closed contract as projectKey: no experienceRole fallback.
     return uniqueCandidate(index.experiencesByKey.get(key));
   }
   const role = asString(fact.normalizedData.experienceRole);
@@ -174,9 +179,10 @@ function achievementFromFact(
  * - Component values are copied verbatim (trimmed) from fact normalizedData. Missing
  *   components stay absent; nothing is synthesized or inferred.
  * - A unit always carries factRefs and evidenceRefs so every claim stays traceable.
- * - Project/experience links resolve only through an exact unique canonical key or a
- *   unique confirmed name/role candidate; ambiguous matches stay empty instead of
- *   picking by input order.
+ * - Project/experience links resolve through an exact unique canonical key, or, only when no
+ *   key is provided, through a unique confirmed name/role candidate; ambiguous or missing
+ *   matches stay empty instead of picking by input order. An explicit key is fail-closed and
+ *   never falls back to a weaker identity.
  * - evidenceRefs is the evidence union of facts that contribute components; context
  *   fact evidence remains reachable via factRefs → context fact → fact.evidenceRefs.
  */

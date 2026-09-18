@@ -433,6 +433,154 @@ describe('Achievement association resolution', () => {
     expect(unit?.experienceId).toBeDefined();
     expect(unit?.factRefs.find((ref) => ref.relation === 'context')?.factId).toBe(acme.id);
   });
+
+  it('dedupes name and canonicalName of one project fact into a single candidate', () => {
+    const platform = careerFact({
+      id: 'fact_equivalent_name',
+      type: 'project',
+      statement: 'Maintains Data Platform',
+      evidenceId: 'ev:equivalent:name',
+      canonicalKey: 'project:data-platform:equivalent',
+      normalizedData: { name: 'Data Platform', canonicalName: 'data platform' }
+    });
+    const achievement = careerFact({
+      id: 'fact_equivalent_name_achievement',
+      type: 'achievement',
+      statement: 'Shipped the Data Platform',
+      evidenceId: 'ev:equivalent:name:achievement',
+      canonicalKey: 'achievement:equivalent-name',
+      normalizedData: { projectName: 'DATA PLATFORM', result: 'Shipped' }
+    });
+    const [unit] = compileAchievements([platform, achievement]);
+    expect(unit?.projectId).toBeDefined();
+    expect(unit?.factRefs.find((ref) => ref.relation === 'context')?.factId).toBe(platform.id);
+  });
+
+  it('still treats distinct projects sharing a normalized name as ambiguous', () => {
+    const alpha = careerFact({
+      id: 'fact_shared_name_alpha',
+      type: 'project',
+      statement: 'Maintains Data Platform (alpha)',
+      evidenceId: 'ev:shared-name:alpha',
+      canonicalKey: 'project:shared-name:alpha',
+      normalizedData: { name: 'Data Platform', canonicalName: 'data platform' }
+    });
+    const beta = careerFact({
+      id: 'fact_shared_name_beta',
+      type: 'project',
+      statement: 'Maintains Data Platform (beta)',
+      evidenceId: 'ev:shared-name:beta',
+      canonicalKey: 'project:shared-name:beta',
+      normalizedData: { name: 'data platform' }
+    });
+    const achievement = careerFact({
+      id: 'fact_shared_name_achievement',
+      type: 'achievement',
+      statement: 'Shipped the Data Platform',
+      evidenceId: 'ev:shared-name:achievement',
+      canonicalKey: 'achievement:shared-name',
+      normalizedData: { projectName: 'DATA PLATFORM', result: 'Shipped' }
+    });
+    const [unit] = compileAchievements([alpha, beta, achievement]);
+    expect(unit?.projectId).toBeUndefined();
+    expect(unit?.factRefs.map((ref) => ref.factId)).toEqual([achievement.id]);
+  });
+
+  it('does not fall back to projectName when an explicit projectKey is missing', () => {
+    const solo = careerFact({
+      id: 'fact_fail_closed_project',
+      type: 'project',
+      statement: 'Maintains Solo Platform',
+      evidenceId: 'ev:fail-closed:project',
+      canonicalKey: 'project:solo-fail-closed',
+      normalizedData: { name: 'Solo Platform' }
+    });
+    const achievement = careerFact({
+      id: 'fact_fail_closed_project_achievement',
+      type: 'achievement',
+      statement: 'Shipped Solo Platform',
+      evidenceId: 'ev:fail-closed:project:achievement',
+      canonicalKey: 'achievement:fail-closed-project',
+      normalizedData: { projectKey: 'project:wrong-key', projectName: 'Solo Platform' }
+    });
+    const [unit] = compileAchievements([solo, achievement]);
+    expect(unit?.projectId).toBeUndefined();
+    expect(unit?.factRefs.map((ref) => ref.factId)).toEqual([achievement.id]);
+  });
+
+  it('does not fall back to projectName when an explicit projectKey is ambiguous', () => {
+    const first = careerFact({
+      id: 'fact_ambiguous_key_first',
+      type: 'project',
+      statement: 'Maintains Ambiguous (first)',
+      evidenceId: 'ev:ambiguous-key:first',
+      canonicalKey: 'project:ambiguous-key',
+      normalizedData: { name: 'Ambig One' }
+    });
+    const second = careerFact({
+      id: 'fact_ambiguous_key_second',
+      type: 'project',
+      statement: 'Maintains Ambiguous (second)',
+      evidenceId: 'ev:ambiguous-key:second',
+      canonicalKey: 'project:ambiguous-key',
+      normalizedData: { name: 'Ambig Two' }
+    });
+    const achievement = careerFact({
+      id: 'fact_ambiguous_key_achievement',
+      type: 'achievement',
+      statement: 'Shipped Ambig One',
+      evidenceId: 'ev:ambiguous-key:achievement',
+      canonicalKey: 'achievement:ambiguous-key',
+      normalizedData: { projectKey: 'project:ambiguous-key', projectName: 'Ambig One' }
+    });
+    const [unit] = compileAchievements([first, second, achievement]);
+    expect(unit?.projectId).toBeUndefined();
+    expect(unit?.factRefs.map((ref) => ref.factId)).toEqual([achievement.id]);
+  });
+
+  it('does not fall back to experienceRole when an explicit experienceKey is missing', () => {
+    const acme = careerFact({
+      id: 'fact_fail_closed_experience',
+      type: 'experience',
+      statement: 'Tech Lead at Acme',
+      evidenceId: 'ev:fail-closed:experience',
+      canonicalKey: 'experience:acme:fail-closed',
+      normalizedData: { role: 'Tech Lead', organization: 'Acme' }
+    });
+    const achievement = careerFact({
+      id: 'fact_fail_closed_experience_achievement',
+      type: 'achievement',
+      statement: 'Led the team',
+      evidenceId: 'ev:fail-closed:experience:achievement',
+      canonicalKey: 'achievement:fail-closed-experience',
+      normalizedData: { experienceKey: 'experience:wrong-key', experienceRole: 'Tech Lead' }
+    });
+    const [unit] = compileAchievements([acme, achievement]);
+    expect(unit?.experienceId).toBeUndefined();
+    expect(unit?.factRefs.map((ref) => ref.factId)).toEqual([achievement.id]);
+  });
+
+  it('links by projectName when no explicit projectKey is provided', () => {
+    const solo = careerFact({
+      id: 'fact_name_only_project',
+      type: 'project',
+      statement: 'Maintains Name Only Platform',
+      evidenceId: 'ev:name-only:project',
+      canonicalKey: 'project:name-only',
+      normalizedData: { name: 'Name Only Platform' }
+    });
+    const achievement = careerFact({
+      id: 'fact_name_only_achievement',
+      type: 'achievement',
+      statement: 'Shipped Name Only Platform',
+      evidenceId: 'ev:name-only:achievement',
+      canonicalKey: 'achievement:name-only',
+      normalizedData: { projectName: 'name only platform' }
+    });
+    const [unit] = compileAchievements([solo, achievement]);
+    expect(unit?.projectId).toBeDefined();
+    expect(unit?.factRefs.find((ref) => ref.relation === 'context')?.factId).toBe(solo.id);
+  });
 });
 
 describe('Achievement provenance invariants', () => {
