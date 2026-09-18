@@ -12,7 +12,7 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
                 │ orchestration
 ┌───────────────▼──────────────────────────────────────────────┐
 │ Sources                                                      │
-│ GitHub · Local Git · Manual/Chat                             │
+│ GitHub · Local Git · Manual/Chat · AI Session                │
 │ discover → scan → extractEvidence                            │
 └───────────────┬──────────────────────────────────────────────┘
                 │ CareerEvidence (observations + attribution)
@@ -41,13 +41,14 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 | `packages/source-github` | GitHub REST metadata adapter、identity attribution、limited external PR discovery | 把 metadata 直接变成 confirmed fact、把 repository activity 当作用户贡献 |
 | `packages/source-local-git` | 显式目录的 Git metadata scanner 与 scanner policy | 读取/上传源码、能力评分 |
 | `packages/source-chat` | Manual/Chat evidence、AIProvider contract、deterministic extractor | 直接写 confirmed history |
+| `packages/source-ai-session` | 消费 AIUsage 归一化的本地 AI session contract，做 project/worktree canonicalization 与 privacy-filtered provenance，输出 CareerEvidence | 解析 vendor JSONL、扫描磁盘、生成 fact |
 | `packages/renderer-*` | 从 Career IR 生成稳定 Markdown | 访问 Source、查询数据库、调用 AI |
 | `apps/cli` | 编排 source → evidence → fact → IR → renderer | 持有 domain truth |
 
 ## 一次写入流程
 
 1. Source 根据用户请求发现目标。
-2. Scanner 根据 `CareerIdentity` 抽取结构化 `CareerEvidence`，保留 `raw`、`normalized` 和 `attribution`。
+2. Scanner 根据 `CareerIdentity` 抽取结构化 `CareerEvidence`，保留 `raw`、`normalized` 和 `attribution`。AI session 这类无法可靠归因的本地来源统一标记 `context`，只作为证据。
 3. Core 只提升 owned/authored/contributed 的高置信度 evidence；context/unknown 保留为证据，不直接创建 CareerFact。
 4. Core 的 deterministic projector 或 `FactExtractor` 创建 `candidate CareerFact`。
 5. 用户通过 `facts confirm <id>` 确认；confirmed fact 的 provenance 不丢失。
@@ -58,6 +59,8 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 ## 隐私边界
 
 原始文件默认留在本机。Local Git 只需要 file path、Git metadata、有限 README/project metadata；默认 denylist 包含 `.env`、credentials/secrets、`node_modules`、`.git`、build/cache 目录，binary 也不进入 language discovery。未来如增加远程 AI provider，调用方必须显式决定发送哪些 normalized evidence，Provider 不拥有数据库写入权限。
+
+AI session 扫描与 AIUsage 的 usage scan 语义不同：usage scan 只读取 token / model / cost 字段，而 career memory scan 会读取 conversation 正文、tool call metadata 与 project identity。AI session evidence 默认只保留相对 source path 后缀与不可逆 `sourcePathHash`，绝对路径与 tool arguments 需显式开启；conversation 正文仍会进入本地 Evidence 与 Career IR export，因此 IR export 应视为本地/私有文档。AIUsage README 中 “never touches conversation content” 的表述只适用于 usage pipeline，不适用于 memory / career session 读取；这是上游文档的语义风险，本仓库仅记录，不在本任务中修改 AIUsage 文档。
 
 ## Storage 判断
 

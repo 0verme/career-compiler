@@ -7,7 +7,7 @@
 Career Compiler 是一个 local-first、evidence-backed 的 Career Data Engine。用户维护的不是一份 Resume JSON，而是可追溯的职业证据、职业事实和 Career Profile：
 
 ```text
-GitHub + Local Git + Conversation
+GitHub + Local Git + Conversation + AI Session
         ↓
       Evidence
         ↓
@@ -33,6 +33,7 @@ Resume.md + GitHub Profile README.md
 - External authored PR discovery：受 `maxExternalContributions` 限制，不把 activity count 当作能力评分
 - Local Git source：显式授权目录、repository metadata、branch、remote、history metadata、contributors、languages、README metadata、tags
 - Manual / Chat source：deterministic/mock fact extraction 与可替换 `AIProvider` contract
+- AI Session source：消费 AIUsage 归一化的 Codex / Claude Code / Pi session contract，生成 session / message 级 Career Evidence（含 source path + line range provenance）
 - Markdown Resume renderer
 - Markdown GitHub Profile renderer
 - versioned Career IR JSON export/import（当前 `0.2`，加载 `0.1` 文档时显式迁移）
@@ -70,9 +71,12 @@ career-compiler render github-profile --output github-profile.md
 
 ```bash
 pnpm --filter @career-compiler/cli start scan local ./workspace --json
+pnpm --filter @career-compiler/cli start scan ai-session ./normalized-sessions.jsonl --json
 pnpm --filter @career-compiler/cli start scan github <username>
 pnpm --filter @career-compiler/cli start scan github 0verme --max-repositories 5 --max-external-contributions 10 --json
 ```
+
+`scan ai-session` 的输入是 AIUsage 归一化后的 session bundle（`ai-session-bundle/1`）；它只写入 Career Evidence，不生成 candidate fact，默认不把绝对路径与 tool arguments 写入 evidence。格式与 privacy 选项见 [Source contract](docs/architecture/source-contract.md)。
 
 建议在配置文件中声明 identity 和扫描上限：
 
@@ -113,11 +117,12 @@ Career Compiler **不认为 repository activity == user contribution**。GitHub 
 - Candidate promotion 只使用高置信度 attribution；context-only repository activity 不直接产生 CareerFact。
 - AI 可以 extract、classify、summarize、suggest，但不会静默改写 confirmed history。
 - Local Git 默认只读取 metadata 与受限 README 摘要，不把源码递归上传给 LLM；scanner 有 allowlist/denylist，并排除 secrets、依赖、Git objects、binary 与 build/cache artifacts。
+- AI Session source 不解析 vendor JSONL、不扫描磁盘，只消费上游归一化的 session contract；本地 session 尚无可靠 identity 绑定，因此统一标记 `context`，停在 Evidence 层。
 - Renderer 只消费 Career IR，不理解 GitHub、Pi、Claude 或 Local Git 的来源细节。
 
 ## 暂不实现
 
-V0.1 明确不包含 Web Dashboard、Tauri、PDF/DOCX、OAuth、LinkedIn/X、ChatGPT/Claude/Pi/Codex history scanner、Vector DB、RAG、Knowledge Graph、MCP、账号系统、云同步、SaaS backend、自动发布 GitHub README。
+V0.1 明确不包含 Web Dashboard、Tauri、PDF/DOCX、OAuth、LinkedIn/X、ChatGPT/Claude/Pi/Codex raw history scanner（只消费 AIUsage 归一化 contract）、Vector DB、RAG、Knowledge Graph、MCP、账号系统、云同步、SaaS backend、自动发布 GitHub README。
 
 ## 文档
 

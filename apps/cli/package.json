@@ -15,6 +15,7 @@
     "@career-compiler/renderer-github-profile": "workspace:*",
     "@career-compiler/renderer-resume": "workspace:*",
     "@career-compiler/source-chat": "workspace:*",
+    "@career-compiler/source-ai-session": "workspace:*",
     "@career-compiler/source-github": "workspace:*",
     "@career-compiler/source-local-git": "workspace:*",
     "@career-compiler/storage": "workspace:*",

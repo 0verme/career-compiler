@@ -41,6 +41,9 @@ importers:
       '@career-compiler/renderer-resume':
         specifier: workspace:*
         version: link:../../packages/renderer-resume
+      '@career-compiler/source-ai-session':
+        specifier: workspace:*
+        version: link:../../packages/source-ai-session
       '@career-compiler/source-chat':
         specifier: workspace:*
         version: link:../../packages/source-chat
@@ -66,6 +69,12 @@ importers:
         version: link:../core
 
   packages/renderer-resume:
+    dependencies:
+      '@career-compiler/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/source-ai-session:
     dependencies:
       '@career-compiler/core':
         specifier: workspace:*
@@ -106,6 +115,9 @@ importers:
       '@career-compiler/renderer-resume':
         specifier: workspace:*
         version: link:../packages/renderer-resume
+      '@career-compiler/source-ai-session':
+        specifier: workspace:*
+        version: link:../packages/source-ai-session
       '@career-compiler/source-chat':
         specifier: workspace:*
         version: link:../packages/source-chat
@@ -127,6 +139,9 @@ importers:
       '@career-compiler/renderer-resume':
         specifier: workspace:*
         version: link:../packages/renderer-resume
+      '@career-compiler/source-ai-session':
+        specifier: workspace:*
+        version: link:../packages/source-ai-session
       '@career-compiler/source-chat':
         specifier: workspace:*
         version: link:../packages/source-chat

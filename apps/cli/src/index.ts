@@ -26,6 +26,7 @@ import {
   extractionToCandidateFacts
 } from '@career-compiler/source-chat';
 import { GitHubSource } from '@career-compiler/source-github';
+import { AiSessionSource } from '@career-compiler/source-ai-session';
 import { LocalGitSource } from '@career-compiler/source-local-git';
 import {
   SQLiteCareerRepository,
@@ -315,6 +316,46 @@ scan
         directory: resolve(directory),
         repositories: result.repositories.length,
         evidence: evidence.length,
+        database: resolve(runtime.dataDir, 'career-compiler.sqlite')
+      });
+    });
+  });
+
+scan
+  .command('ai-session <file>')
+  .description(
+    '导入已归一化的本地 AI session bundle（Codex / Claude Code / Pi）；只生成 Career Evidence，不生成事实'
+  )
+  .option('--source-path <mode>', 'sourcePath 写入模式：relative | absolute | omitted', 'relative')
+  .option('--include-tool-arguments', '把 tool call arguments 写入 evidence（可能包含敏感内容）')
+  .action(async (file: string, options: Record<string, string | boolean>, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const sourcePath = options.sourcePath;
+      if (sourcePath !== 'relative' && sourcePath !== 'absolute' && sourcePath !== 'omitted') {
+        throw new Error(`Unknown --source-path mode: ${String(sourcePath)}`);
+      }
+      const source = new AiSessionSource();
+      const context = nowContext(runtime.identity);
+      const discovery = await source.discover(
+        {
+          filePath: resolve(file),
+          privacy: {
+            sourcePath,
+            includeToolArguments: options.includeToolArguments === true
+          }
+        },
+        context
+      );
+      const result = await source.scan(discovery, context);
+      const evidence = await source.extractEvidence(result, context);
+      ingest(runtime, evidence);
+      printValue(command, {
+        source: 'ai-session',
+        file: resolve(file),
+        sessions: result.sessions.length,
+        evidence: evidence.length,
+        skippedRecords: result.skippedRecords,
+        issues: result.issues.map((issue) => issue.reason),
         database: resolve(runtime.dataDir, 'career-compiler.sqlite')
       });
     });
