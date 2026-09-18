@@ -750,6 +750,842 @@
       "observedAt": "2025-01-11T09:00:00.000Z",
       "discoveredAt": "2025-01-15T00:00:00.000Z",
       "contentHash": "content_97021bf7"
+    },
+    {
+      "id": "ai-session:ai-session:codex:codex-2025-01-12-lineage-registry",
+      "sourceType": "ai-session",
+      "sourceId": "codex:codex-2025-01-12-lineage-registry",
+      "evidenceType": "ai-session",
+      "raw": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "startedAt": "2025-01-12T09:00:00.000Z",
+        "endedAt": "2025-01-12T09:02:30.000Z",
+        "models": [
+          "gpt-5-codex"
+        ],
+        "toolNames": [
+          "apply_patch",
+          "shell"
+        ],
+        "messageCount": 5,
+        "userMessageCount": 2,
+        "assistantMessageCount": 3,
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:00:00.000Z"
+        }
+      },
+      "normalized": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "startedAt": "2025-01-12T09:00:00.000Z",
+        "endedAt": "2025-01-12T09:02:30.000Z",
+        "models": [
+          "gpt-5-codex"
+        ],
+        "toolNames": [
+          "apply_patch",
+          "shell"
+        ],
+        "messageCount": 5,
+        "userMessageCount": 2,
+        "assistantMessageCount": 3,
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:00:00.000Z"
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://codex/codex-2025-01-12-lineage-registry",
+      "observedAt": "2025-01-12T09:02:30.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-content_3021a506"
+    },
+    {
+      "id": "ai-session:ai-session-message:codex:codex-2025-01-12-lineage-registry:message:id:codex-msg-001",
+      "sourceType": "ai-session",
+      "sourceId": "codex:codex-2025-01-12-lineage-registry:message:id:codex-msg-001",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-msg-001",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-12T09:00:00.000Z",
+        "model": null,
+        "text": "在 data-lineage-toolkit 里新增 contract registry，先实现 schema 校验和 owner 字段。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:00:00.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 4,
+          "lineEnd": 4
+        }
+      },
+      "normalized": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-msg-001",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-12T09:00:00.000Z",
+        "model": null,
+        "text": "在 data-lineage-toolkit 里新增 contract registry，先实现 schema 校验和 owner 字段。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:00:00.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 4,
+          "lineEnd": 4
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://codex/codex-2025-01-12-lineage-registry",
+      "observedAt": "2025-01-12T09:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_eae826d5"
+    },
+    {
+      "id": "ai-session:ai-session-message:codex:codex-2025-01-12-lineage-registry:message:id:codex-msg-002",
+      "sourceType": "ai-session",
+      "sourceId": "codex:codex-2025-01-12-lineage-registry:message:id:codex-msg-002",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-msg-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-12T09:00:30.000Z",
+        "model": "gpt-5-codex",
+        "text": "我会先阅读现有的 ingestion contract，再添加 registry 模块和单元测试。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:00:30.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 5,
+          "lineEnd": 5
+        }
+      },
+      "normalized": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-msg-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-12T09:00:30.000Z",
+        "model": "gpt-5-codex",
+        "text": "我会先阅读现有的 ingestion contract，再添加 registry 模块和单元测试。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:00:30.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 5,
+          "lineEnd": 5
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://codex/codex-2025-01-12-lineage-registry",
+      "observedAt": "2025-01-12T09:00:30.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_4317b3d3"
+    },
+    {
+      "id": "ai-session:ai-session-message:codex:codex-2025-01-12-lineage-registry:message:id:codex-call-001",
+      "sourceType": "ai-session",
+      "sourceId": "codex:codex-2025-01-12-lineage-registry:message:id:codex-call-001",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-call-001",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-12T09:01:00.000Z",
+        "model": "gpt-5-codex",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "call-001",
+            "name": "shell"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:01:00.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 6,
+          "lineEnd": 6
+        }
+      },
+      "normalized": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-call-001",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-12T09:01:00.000Z",
+        "model": "gpt-5-codex",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "call-001",
+            "name": "shell"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:01:00.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 6,
+          "lineEnd": 6
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://codex/codex-2025-01-12-lineage-registry",
+      "observedAt": "2025-01-12T09:01:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_14ed906f"
+    },
+    {
+      "id": "ai-session:ai-session-message:codex:codex-2025-01-12-lineage-registry:message:id:codex-msg-003",
+      "sourceType": "ai-session",
+      "sourceId": "codex:codex-2025-01-12-lineage-registry:message:id:codex-msg-003",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-msg-003",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-12T09:02:00.000Z",
+        "model": null,
+        "text": "下一步：把 registry 接到 lineage graph service，并补一个回归测试。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:02:00.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 7,
+          "lineEnd": 7
+        }
+      },
+      "normalized": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-msg-003",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-12T09:02:00.000Z",
+        "model": null,
+        "text": "下一步：把 registry 接到 lineage graph service，并补一个回归测试。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:02:00.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 7,
+          "lineEnd": 7
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://codex/codex-2025-01-12-lineage-registry",
+      "observedAt": "2025-01-12T09:02:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_53999503"
+    },
+    {
+      "id": "ai-session:ai-session-message:codex:codex-2025-01-12-lineage-registry:message:id:codex-call-002",
+      "sourceType": "ai-session",
+      "sourceId": "codex:codex-2025-01-12-lineage-registry:message:id:codex-call-002",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-call-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-12T09:02:30.000Z",
+        "model": "gpt-5-codex",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "call-002",
+            "name": "apply_patch"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:02:30.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 8,
+          "lineEnd": 8
+        }
+      },
+      "normalized": {
+        "source": "codex",
+        "sessionId": "codex-2025-01-12-lineage-registry",
+        "messageId": "codex-call-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-12T09:02:30.000Z",
+        "model": "gpt-5-codex",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "call-002",
+            "name": "apply_patch"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "codex",
+          "sourceSessionId": "codex-2025-01-12-lineage-registry",
+          "occurredAt": "2025-01-12T09:02:30.000Z",
+          "sourcePath": "sessions/2025/01/12/rollout-2025-01-12T09-00-00-lineage-registry.jsonl",
+          "sourcePathHash": "source-path_9ae3ff1d",
+          "lineStart": 8,
+          "lineEnd": 8
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://codex/codex-2025-01-12-lineage-registry",
+      "observedAt": "2025-01-12T09:02:30.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_b2893da6"
+    },
+    {
+      "id": "ai-session:ai-session:pi:pi-2025-01-13-lineage-worktree",
+      "sourceType": "ai-session",
+      "sourceId": "pi:pi-2025-01-13-lineage-worktree",
+      "evidenceType": "ai-session",
+      "raw": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "startedAt": "2025-01-13T10:00:00.000Z",
+        "endedAt": "2025-01-13T10:01:30.000Z",
+        "models": [
+          "claude-sonnet-4"
+        ],
+        "toolNames": [
+          "edit",
+          "read"
+        ],
+        "messageCount": 5,
+        "userMessageCount": 2,
+        "assistantMessageCount": 3,
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:00:00.000Z"
+        }
+      },
+      "normalized": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "startedAt": "2025-01-13T10:00:00.000Z",
+        "endedAt": "2025-01-13T10:01:30.000Z",
+        "models": [
+          "claude-sonnet-4"
+        ],
+        "toolNames": [
+          "edit",
+          "read"
+        ],
+        "messageCount": 5,
+        "userMessageCount": 2,
+        "assistantMessageCount": 3,
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:00:00.000Z"
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://pi/pi-2025-01-13-lineage-worktree",
+      "observedAt": "2025-01-13T10:01:30.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-content_8be0e391"
+    },
+    {
+      "id": "ai-session:ai-session-message:pi:pi-2025-01-13-lineage-worktree:message:id:pi-msg-001",
+      "sourceType": "ai-session",
+      "sourceId": "pi:pi-2025-01-13-lineage-worktree:message:id:pi-msg-001",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-msg-001",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-13T10:00:00.000Z",
+        "model": null,
+        "text": "在 worktree 里继续 lineage graph 的 contract 接入，保持 registry schema 不变。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:00:00.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 1,
+          "lineEnd": 1
+        }
+      },
+      "normalized": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-msg-001",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-13T10:00:00.000Z",
+        "model": null,
+        "text": "在 worktree 里继续 lineage graph 的 contract 接入，保持 registry schema 不变。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:00:00.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 1,
+          "lineEnd": 1
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://pi/pi-2025-01-13-lineage-worktree",
+      "observedAt": "2025-01-13T10:00:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_0f88d629"
+    },
+    {
+      "id": "ai-session:ai-session-message:pi:pi-2025-01-13-lineage-worktree:message:id:pi-msg-002",
+      "sourceType": "ai-session",
+      "sourceId": "pi:pi-2025-01-13-lineage-worktree:message:id:pi-msg-002",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-msg-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-13T10:00:30.000Z",
+        "model": "claude-sonnet-4",
+        "text": "我会复用上个 session 的 schema，只调整 adapter 层。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:00:30.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 2,
+          "lineEnd": 2
+        }
+      },
+      "normalized": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-msg-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-13T10:00:30.000Z",
+        "model": "claude-sonnet-4",
+        "text": "我会复用上个 session 的 schema，只调整 adapter 层。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:00:30.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 2,
+          "lineEnd": 2
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://pi/pi-2025-01-13-lineage-worktree",
+      "observedAt": "2025-01-13T10:00:30.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_2fea8095"
+    },
+    {
+      "id": "ai-session:ai-session-message:pi:pi-2025-01-13-lineage-worktree:message:id:pi-call-001",
+      "sourceType": "ai-session",
+      "sourceId": "pi:pi-2025-01-13-lineage-worktree:message:id:pi-call-001",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-call-001",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-13T10:01:00.000Z",
+        "model": "claude-sonnet-4",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "tool-2",
+            "name": "read"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:01:00.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 3,
+          "lineEnd": 3
+        }
+      },
+      "normalized": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-call-001",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-13T10:01:00.000Z",
+        "model": "claude-sonnet-4",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "tool-2",
+            "name": "read"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:01:00.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 3,
+          "lineEnd": 3
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://pi/pi-2025-01-13-lineage-worktree",
+      "observedAt": "2025-01-13T10:01:00.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_7ab4b6ec"
+    },
+    {
+      "id": "ai-session:ai-session-message:pi:pi-2025-01-13-lineage-worktree:message:id:pi-msg-003",
+      "sourceType": "ai-session",
+      "sourceId": "pi:pi-2025-01-13-lineage-worktree:message:id:pi-msg-003",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-msg-003",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-13T10:01:20.000Z",
+        "model": null,
+        "text": "顺便把 onboarding 时间从六周降到一周的指标写进 docs。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:01:20.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 4,
+          "lineEnd": 4
+        }
+      },
+      "normalized": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-msg-003",
+        "role": "user",
+        "actorRole": "user",
+        "timestamp": "2025-01-13T10:01:20.000Z",
+        "model": null,
+        "text": "顺便把 onboarding 时间从六周降到一周的指标写进 docs。",
+        "toolCalls": [],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:01:20.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 4,
+          "lineEnd": 4
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://pi/pi-2025-01-13-lineage-worktree",
+      "observedAt": "2025-01-13T10:01:20.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_0c78b734"
+    },
+    {
+      "id": "ai-session:ai-session-message:pi:pi-2025-01-13-lineage-worktree:message:id:pi-call-002",
+      "sourceType": "ai-session",
+      "sourceId": "pi:pi-2025-01-13-lineage-worktree:message:id:pi-call-002",
+      "evidenceType": "ai-session-message",
+      "raw": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-call-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-13T10:01:30.000Z",
+        "model": "claude-sonnet-4",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "tool-3",
+            "name": "edit"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:01:30.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 5,
+          "lineEnd": 5
+        }
+      },
+      "normalized": {
+        "source": "pi",
+        "sessionId": "pi-2025-01-13-lineage-worktree",
+        "messageId": "pi-call-002",
+        "role": "assistant",
+        "actorRole": "assistant",
+        "timestamp": "2025-01-13T10:01:30.000Z",
+        "model": "claude-sonnet-4",
+        "text": null,
+        "toolCalls": [
+          {
+            "id": "tool-3",
+            "name": "edit"
+          }
+        ],
+        "project": {
+          "projectId": "aiproject_1672c35a",
+          "projectName": "data-lineage-toolkit",
+          "identityBasis": "remote",
+          "repoUrl": "https://github.com/alice/data-lineage-toolkit",
+          "isWorktree": true,
+          "upstreamProjectId": "project_9f1d2c3b4a5e6f70"
+        },
+        "sourceRef": {
+          "source": "pi",
+          "sourceSessionId": "pi-2025-01-13-lineage-worktree",
+          "occurredAt": "2025-01-13T10:01:30.000Z",
+          "sourcePath": "sessions/--home-alice-work-data-lineage-toolkit-wt-42--/2025-01-13T10-00-00-000Z_pi.jsonl",
+          "sourcePathHash": "source-path_82487373",
+          "lineStart": 5,
+          "lineEnd": 5
+        }
+      },
+      "attribution": "context",
+      "sourceUri": "ai-session://pi/pi-2025-01-13-lineage-worktree",
+      "observedAt": "2025-01-13T10:01:30.000Z",
+      "discoveredAt": "2025-01-15T00:00:00.000Z",
+      "contentHash": "ai-session-message-content_5cd91962"
     }
   ]
 }

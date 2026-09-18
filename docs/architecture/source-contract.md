@@ -59,6 +59,19 @@ Scanner policy 支持：
 
 `ManualChatSource` 将用户输入保存为 conversation Evidence。`DeterministicFactExtractor` 是无外部服务的 V0.1 fallback；它只返回可验证 schema 的 candidates。未来的 `ProviderFactExtractor` 通过 `AIProvider` 接入任何 OpenAI-compatible、Gemini、Claude、DeepSeek 或 local model，但 provider 输出必须先经过 `validateFactExtractionOutput`。
 
+### AI Session
+
+`AiSessionSource` 消费 AIUsage 已经归一化的本地 AI session contract（`ai-session-bundle/1`），**不重新实现** Codex / Claude Code / Pi JSONL parser：
+
+- 输入：`NormalizedAiSession` bundle（JSON 或 JSONL），包含 messages、tool calls、`ProjectIdentity` 与 `sourceRef`；
+- 输出：每个 session 一条 `ai-session` evidence，每条 message 一条 `ai-session-message` evidence，tool call metadata 挂在 message 上；
+- Provenance：`source` / `sourceSessionId` / `occurredAt` / `sourcePath` / `sourcePathHash` / `lineStart` / `lineEnd` 保存在 `normalized.sourceRef`，不修改 Core schema；
+- Project identity：优先 canonical `repoUrl`，其次 `metadata.gitCommonDir`，保证 main workspace 与 linked worktree 归并为同一 `projectId`，而不是三个项目；
+- Privacy：默认不写绝对路径与 tool arguments，不扫描磁盘、不读取 auth/secrets 文件；
+- Boundary：只产生 `CareerEvidence`；`attribution` 为 `context`，不生成 candidate fact，也不进入 Achievement。
+
+依赖策略：career-compiler 复制的是 contract，不是 scanner。`@aiusage/memory-core` 目前 `private` 且只导出 `src/index.ts`，`memory-sessions.ts` / `memory-project.ts` 仍是 CLI 内部实现，因此本轮以 JSON contract + adapter 解耦；未来再评估 `@0verme/ai-session-core` / `@0verme/ai-session-scanner`。
+
 ## Privacy 与失败策略
 
 - Source 原始输入留在本地 storage；导出前由用户决定是否携带 local path。

@@ -1,0 +1,17 @@
+{
+  "name": "@career-compiler/source-ai-session",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first AI session evidence adapter for normalized Codex / Claude Code / Pi sessions.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@career-compiler/core": "workspace:*"
+  },
+  "files": ["dist", "README.md"]
+}

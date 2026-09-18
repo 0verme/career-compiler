@@ -17,6 +17,7 @@ import {
   extractionToCandidateFacts
 } from '@career-compiler/source-chat';
 import { createAliceGitHubFixtureEvidence } from '@career-compiler/source-github';
+import { createAliceAiSessionFixtureEvidence } from '@career-compiler/source-ai-session';
 import { createAliceLocalGitFixtureEvidence } from '@career-compiler/source-local-git';
 
 const FIXTURE_TIME = '2025-01-15T00:00:00.000Z';
@@ -33,7 +34,9 @@ const chatEvidence = [
   createAliceChatFixtureEvidence(FIXTURE_TIME),
   createAliceAchievementNotesEvidence(FIXTURE_TIME)
 ];
-const evidence = [...githubEvidence, ...localEvidence, ...chatEvidence];
+// AI session evidence stays at the evidence layer: it produces no candidate facts.
+const aiSessionEvidence = createAliceAiSessionFixtureEvidence(FIXTURE_TIME);
+const evidence = [...githubEvidence, ...localEvidence, ...chatEvidence, ...aiSessionEvidence];
 const extractor = new DeterministicFactExtractor();
 const chatCandidates: CareerFact[] = [];
 for (const item of chatEvidence) {

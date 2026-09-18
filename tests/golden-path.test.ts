@@ -14,6 +14,7 @@ import {
   extractionToCandidateFacts
 } from '@career-compiler/source-chat';
 import { createAliceGitHubFixtureEvidence } from '@career-compiler/source-github';
+import { createAliceAiSessionFixtureEvidence } from '@career-compiler/source-ai-session';
 import { createAliceLocalGitFixtureEvidence } from '@career-compiler/source-local-git';
 
 const NOW = '2025-01-15T00:00:00.000Z';
@@ -26,7 +27,8 @@ describe('Alice golden path: Evidence → Fact → Achievement → Career IR →
       createAliceChatFixtureEvidence(NOW),
       createAliceAchievementNotesEvidence(NOW)
     ];
-    const evidence = [...githubEvidence, ...localEvidence, ...chatEvidence];
+    const aiSessionEvidence = createAliceAiSessionFixtureEvidence(NOW);
+    const evidence = [...githubEvidence, ...localEvidence, ...chatEvidence, ...aiSessionEvidence];
     const extractor = new DeterministicFactExtractor();
     const chatCandidates: CareerFact[] = [];
     for (const item of chatEvidence) {
@@ -92,6 +94,10 @@ describe('Alice golden path: Evidence → Fact → Achievement → Career IR →
     });
     expect(draftIR.profile.achievements).toEqual([]);
     expect(renderResume(draftIR).content).not.toContain('Cut lineage onboarding time');
+
+    // AI session evidence travels with the IR but never becomes a fact or achievement.
+    expect(ir.evidence.some((item) => item.evidenceType === 'ai-session')).toBe(true);
+    expect(deriveCandidateFacts(aiSessionEvidence)).toEqual([]);
 
     // Structured components are copied verbatim from the user-provided notes.
     const onboarding = ir.profile.achievements.find((achievement) =>

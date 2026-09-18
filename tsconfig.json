@@ -6,6 +6,7 @@
     { "path": "packages/source-github" },
     { "path": "packages/source-local-git" },
     { "path": "packages/source-chat" },
+    { "path": "packages/source-ai-session" },
     { "path": "packages/renderer-resume" },
     { "path": "packages/renderer-github-profile" },
     { "path": "apps/cli" },
