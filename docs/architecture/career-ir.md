@@ -83,7 +83,7 @@ Problem → Constraint → Decision → Action → Result
 - `achievement` / `metric` facts 是 Achievement 来源，`project` / `experience` / `role` facts 只作为关联对象；
 - 组件值只从 fact `normalizedData` 原样 trim，缺什么就是空什么；
 - 禁止生成数字、结果、因果关系、技术决策，禁止跨 fact 拼接句子；
-- 关联解析不得依赖排序：canonical key 精确匹配优先；name / role fallback 只在唯一 confirmed candidate 时关联；0 个或多个候选（重名、重复 canonicalKey）一律留空；
+- 关联解析不得依赖排序：canonical key 精确匹配优先；显式提供 key（`projectKey` / `experienceKey`）时按 fail-closed 处理，key 缺失或匹配多条一律留空，不回退到 name / role；只有完全未提供 key 时才允许 name / role fallback，且仅在唯一 confirmed candidate 时关联；candidate 集合按 `fact.id` 去重，同一 fact 的等价 name / canonicalName 不构成 ambiguity；重名或重复 canonicalKey 一律留空；
 - 一个 Project / Experience 可以承载多个 Achievement；
 - 相同 facts 输入必须产生相同 ID、顺序和内容。
 
