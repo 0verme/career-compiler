@@ -18,6 +18,16 @@ Career Sources
 
 用户不应该分别维护 Resume、GitHub Profile README、Portfolio 和 Bio。它们是 presentation；source of truth 是 Evidence + Facts + Profile。
 
+目标岗位（Target Job）是另一条正交输入：它描述“想申请什么”，而不是“已经做过什么”。用户可以用同一个 Career Profile 管理多个 Target Job：
+
+```text
+Career Profile / Career IR ─────────┐
+                                    ├→ 未来的 target-aware compile
+Target Job（company / title / rawJd）┘
+```
+
+Target Job 只保存目标上下文与逐字保存的 raw JD，不进入 Career IR，也不会修改 confirmed Career Facts。修改 JD 只更新 `rawJdHash`，作为未来判断派生分析是否 stale 的基础。
+
 ## 产品原则
 
 1. **Career Data First**：先维护结构化职业事实，再生成输出。

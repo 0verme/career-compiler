@@ -34,6 +34,7 @@ Resume.md + GitHub Profile README.md
 - Local Git source：显式授权目录、repository metadata、branch、remote、history metadata、contributors、languages、README metadata、tags
 - Manual / Chat source：deterministic/mock fact extraction 与可替换 `AIProvider` contract
 - AI Session source：消费 AIUsage 归一化的 Codex / Claude Code / Pi session contract，生成 session / message 级 Career Evidence（含 source path + line range provenance）
+- Target Job domain：稳定 ID、可选 company、title、逐字保存的 raw JD 与 `rawJdHash`，持久化到独立 `target_jobs` 表；`target add/list/show/update` CLI 可管理多个目标岗位
 - Markdown Resume renderer
 - Markdown GitHub Profile renderer
 - versioned Career IR JSON export/import（当前 `0.2`，加载 `0.1` 文档时显式迁移）
@@ -63,9 +64,15 @@ CLI 使用前先运行 `pnpm build`：
 career-compiler add "我负责一个18人的湖仓团队，上游180多个系统，下游120多个系统。"
 career-compiler facts list candidate
 career-compiler facts confirm <fact-id>
+career-compiler target add --title "Data Platform Lead" --company "某券商" --jd-file jd.md
+career-compiler target list
+career-compiler target show <target-job-id>
+career-compiler target update <target-job-id> --jd-file jd-v2.md
 career-compiler render resume --output resume.md
 career-compiler render github-profile --output github-profile.md
 ```
+
+`target add` / `target update` 的长文本 raw JD 可以来自 `--jd-file <path>`、`--jd-file -` 或 stdin；`target list` 不打印 JD 正文。Target Job 的边界见 [Target Job](docs/architecture/target-job.md)。
 
 也可以从 workspace 运行：
 
@@ -119,15 +126,19 @@ Career Compiler **不认为 repository activity == user contribution**。GitHub 
 - Local Git 默认只读取 metadata 与受限 README 摘要，不把源码递归上传给 LLM；scanner 有 allowlist/denylist，并排除 secrets、依赖、Git objects、binary 与 build/cache artifacts。
 - AI Session source 不解析 vendor JSONL、不扫描磁盘，只消费上游归一化的 session contract；本地 session 尚无可靠 identity 绑定，因此统一标记 `context`，停在 Evidence 层。
 - Renderer 只消费 Career IR，不理解 GitHub、Pi、Claude 或 Local Git 的来源细节。
+- Target Job 是目标上下文，不是职业事实：它单独存储，不进入 Career IR，也不会因为保存或修改 JD 而改写 CareerFact / CareerAchievement / CareerProfile。修改 raw JD 只会改变 `rawJdHash`，作为未来派生分析 stale 的基础。
 
 ## 暂不实现
 
 V0.1 明确不包含 Web Dashboard、Tauri、PDF/DOCX、OAuth、LinkedIn/X、ChatGPT/Claude/Pi/Codex raw history scanner（只消费 AIUsage 归一化 contract）、Vector DB、RAG、Knowledge Graph、MCP、账号系统、云同步、SaaS backend、自动发布 GitHub README。
 
+Target Job 目前只做到 domain + storage + minimal CLI：不解析 JD、不做 LLM/prompt/embedding、不做 Evidence Matcher / JD Evidence Matrix / Gap、不做 Resume Variant / target-aware resume、不做 ATS 分数或职位抓取。下一阶段是 `TargetJob → JD Requirement Parser`。
+
 ## 文档
 
 - [Architecture overview](docs/architecture/overview.md)
 - [Career IR](docs/architecture/career-ir.md)
+- [Target Job](docs/architecture/target-job.md)
 - [Source contract](docs/architecture/source-contract.md)
 - [GitHub Identity Attribution](docs/architecture/github-attribution.md)
 - [Renderer contract](docs/architecture/renderer-contract.md)

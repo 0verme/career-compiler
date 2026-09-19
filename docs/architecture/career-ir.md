@@ -107,6 +107,7 @@ Resume bullet、GitHub README 的 section 顺序、Markdown link 形式、面向
 - 由 commit 数、代码量或 activity count 直接推导的“能力评分”
 - 没有 provenance 的任意 AI 生成句子
 - secrets、token、`.env` 内容、私有源码正文
+- 目标岗位上下文（`TargetJob` 的 company / title / raw JD / rawJdHash）、JD keywords、匹配分数与 Resume Variant 排序：它们是独立于事实源的 target context，见 [Target Job](target-job.md)
 
 Source-specific metadata 可以作为 Evidence 的 normalized payload；只有跨 renderer 需要且能解释 provenance 的职业语义才进入 Fact/Profile。
 

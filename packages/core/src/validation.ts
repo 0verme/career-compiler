@@ -12,10 +12,13 @@ import type {
   CareerIR,
   CareerProfile,
   JsonObject,
-  JsonValue
+  JsonValue,
+  TargetJob,
+  TargetJobDraft,
+  TargetJobPatch
 } from './types.js';
 import { CAREER_IR_SCHEMA_VERSION } from './types.js';
-import { experienceIdFromFact, projectIdFromFact } from './ids.js';
+import { experienceIdFromFact, hashRawJd, projectIdFromFact } from './ids.js';
 
 export class DomainValidationError extends Error {
   constructor(message: string) {
@@ -492,4 +495,66 @@ export function validateCareerIR(value: unknown): CareerIR {
 
 export function serializeCareerIR(ir: CareerIR): string {
   return `${JSON.stringify(validateCareerIR(ir), null, 2)}\n`;
+}
+
+/**
+ * Target Job validation. `rawJdHash` must be consistent with `rawJd` so a
+ * stored target job can never silently disagree with the text future parsers
+ * would re-read.
+ */
+export function validateTargetJob(value: unknown): TargetJob {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('TargetJob must be an object');
+  }
+  const job = value as Partial<TargetJob>;
+  assertNonEmptyString(job.id, 'targetJob.id');
+  assertNonEmptyString(job.title, 'targetJob.title');
+  assertNonEmptyString(job.rawJd, 'targetJob.rawJd');
+  if (job.company !== undefined) {
+    assertNonEmptyString(job.company, 'targetJob.company');
+  }
+  assertNonEmptyString(job.rawJdHash, 'targetJob.rawJdHash');
+  if (job.rawJdHash !== hashRawJd(job.rawJd)) {
+    throw new DomainValidationError('targetJob.rawJdHash must match targetJob.rawJd');
+  }
+  assertIsoDate(job.createdAt, 'targetJob.createdAt');
+  assertIsoDate(job.updatedAt, 'targetJob.updatedAt');
+  return job as TargetJob;
+}
+
+/** Validates user input for a new TargetJob before identity and hash are assigned. */
+export function validateTargetJobDraft(value: unknown): TargetJobDraft {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('TargetJob draft must be an object');
+  }
+  const draft = value as Partial<TargetJobDraft>;
+  assertNonEmptyString(draft.title, 'targetJob.title');
+  assertNonEmptyString(draft.rawJd, 'targetJob.rawJd');
+  if (draft.company !== undefined) {
+    assertNonEmptyString(draft.company, 'targetJob.company');
+  }
+  return draft as TargetJobDraft;
+}
+
+/** Validates a partial TargetJob update; `company: null` explicitly clears it. */
+export function validateTargetJobPatch(value: unknown): TargetJobPatch {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('TargetJob patch must be an object');
+  }
+  const patch = value as TargetJobPatch;
+  if (patch.title !== undefined) {
+    assertNonEmptyString(patch.title, 'targetJob.title');
+  }
+  if (patch.company !== undefined && patch.company !== null) {
+    assertNonEmptyString(patch.company, 'targetJob.company');
+  }
+  if (patch.rawJd !== undefined) {
+    assertNonEmptyString(patch.rawJd, 'targetJob.rawJd');
+  }
+  if (patch.title === undefined && patch.company === undefined && patch.rawJd === undefined) {
+    throw new DomainValidationError(
+      'TargetJob patch must change at least one of title, company or rawJd'
+    );
+  }
+  return patch;
 }

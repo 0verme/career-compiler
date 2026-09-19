@@ -9,14 +9,20 @@ import type {
   CareerIR,
   CareerRepository,
   JsonObject,
-  SourceType
+  SourceType,
+  TargetJob,
+  TargetJobPatch,
+  TargetJobRepository,
+  TargetJobUpdateOptions
 } from '@career-compiler/core';
 import {
   parseCareerIR,
   serializeCareerIR,
+  updateTargetJob as applyTargetJobPatch,
   validateCareerEvidence,
   validateCareerFact,
-  validateCareerIR
+  validateCareerIR,
+  validateTargetJob
 } from '@career-compiler/core';
 
 export interface SQLiteCareerRepositoryOptions {
@@ -123,7 +129,19 @@ function parseFact(row: SQLiteRow, refs: SQLiteRow[]): CareerFact {
   });
 }
 
-export class SQLiteCareerRepository implements CareerRepository {
+function parseTargetJob(row: SQLiteRow): TargetJob {
+  return validateTargetJob({
+    id: rowString(row, 'id'),
+    ...(rowNullableString(row, 'company') ? { company: rowNullableString(row, 'company') } : {}),
+    title: rowString(row, 'title'),
+    rawJd: rowString(row, 'raw_jd'),
+    rawJdHash: rowString(row, 'raw_jd_hash'),
+    createdAt: rowString(row, 'created_at'),
+    updatedAt: rowString(row, 'updated_at')
+  });
+}
+
+export class SQLiteCareerRepository implements CareerRepository, TargetJobRepository {
   private readonly database: DatabaseSync;
 
   constructor(options: SQLiteCareerRepositoryOptions) {
@@ -186,6 +204,17 @@ export class SQLiteCareerRepository implements CareerRepository {
         document_json TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS target_jobs (
+        id TEXT PRIMARY KEY,
+        company TEXT,
+        title TEXT NOT NULL,
+        raw_jd TEXT NOT NULL,
+        raw_jd_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_target_jobs_updated_at ON target_jobs(updated_at);
     `);
     this.ensureEvidenceColumns();
   }
@@ -450,6 +479,68 @@ export class SQLiteCareerRepository implements CareerRepository {
     const ir = parseCareerIR(await readFile(filePath, 'utf8'));
     this.importCareerIR(ir);
     return ir;
+  }
+
+  saveTargetJob(job: TargetJob): void {
+    this.transaction(() => this.writeTargetJob(job));
+  }
+
+  getTargetJob(id: string): TargetJob | undefined {
+    const row = this.database.prepare('SELECT * FROM target_jobs WHERE id = ?').get(id) as
+      | SQLiteRow
+      | undefined;
+    return row ? parseTargetJob(row) : undefined;
+  }
+
+  /** Most recently updated first, then by id so the order is deterministic. */
+  listTargetJobs(): TargetJob[] {
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const rows = this.database
+      .prepare('SELECT * FROM target_jobs ORDER BY updated_at DESC, id')
+      .all() as unknown as SQLiteRow[];
+    return rows.map(parseTargetJob);
+  }
+
+  updateTargetJob(
+    id: string,
+    patch: TargetJobPatch,
+    options: TargetJobUpdateOptions = {}
+  ): TargetJob | undefined {
+    return this.transaction(() => {
+      const existing = this.getTargetJob(id);
+      if (!existing) {
+        return undefined;
+      }
+      const updated = applyTargetJobPatch(existing, patch, options);
+      this.writeTargetJob(updated);
+      return updated;
+    });
+  }
+
+  private writeTargetJob(job: TargetJob): void {
+    const validated = validateTargetJob(job);
+    this.database
+      .prepare(`
+        INSERT INTO target_jobs
+          (id, company, title, raw_jd, raw_jd_hash, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          company = excluded.company,
+          title = excluded.title,
+          raw_jd = excluded.raw_jd,
+          raw_jd_hash = excluded.raw_jd_hash,
+          created_at = excluded.created_at,
+          updated_at = excluded.updated_at
+      `)
+      .run(
+        validated.id,
+        validated.company ?? null,
+        validated.title,
+        validated.rawJd,
+        validated.rawJdHash,
+        validated.createdAt,
+        validated.updatedAt
+      );
   }
 
   close(): void {
