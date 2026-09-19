@@ -9,10 +9,14 @@ import type {
   CareerIdentity,
   CareerIR,
   CareerRepository,
-  SourceRunContext
+  SourceRunContext,
+  TargetJob,
+  TargetJobPatch,
+  TargetJobRepository
 } from '@career-compiler/core';
 import {
   buildCareerIR,
+  createTargetJob,
   deriveCandidateFacts,
   mergeCandidateFacts,
   parseCareerIR,
@@ -52,7 +56,7 @@ interface Runtime {
   dataDir: string;
   profileId: string;
   identity?: CareerIdentity;
-  repository: CareerRepository;
+  repository: CareerRepository & TargetJobRepository;
 }
 
 const FACT_STATUSES: CareerFactStatus[] = [
@@ -194,6 +198,97 @@ function printValue(command: Command, value: unknown): void {
 
 async function readTemplate(path: string | undefined): Promise<string | undefined> {
   return path ? readFile(resolve(path), 'utf8') : undefined;
+}
+
+function targetJobSummary(job: TargetJob): Record<string, string | null> {
+  return {
+    id: job.id,
+    company: job.company ?? null,
+    title: job.title,
+    updatedAt: job.updatedAt
+  };
+}
+
+function targetJobHeader(job: TargetJob): string {
+  return [
+    `id:        ${job.id}`,
+    `company:   ${job.company ?? ''}`,
+    `title:     ${job.title}`,
+    `rawJdHash: ${job.rawJdHash}`,
+    `createdAt: ${job.createdAt}`,
+    `updatedAt: ${job.updatedAt}`
+  ].join('\n');
+}
+
+/** add/update output: identity and change status, never the full raw JD. */
+function printTargetJobSummary(command: Command, job: TargetJob, changed?: string[]): void {
+  if (rootOptions(command).json) {
+    printValue(command, job);
+    return;
+  }
+  const lines = [targetJobHeader(job)];
+  if (changed) {
+    lines.push(`changed:   ${changed.length > 0 ? changed.join(', ') : '(none)'}`);
+  }
+  process.stdout.write(`${lines.join('\n')}\n`);
+}
+
+function printTargetJobDetail(command: Command, job: TargetJob): void {
+  if (rootOptions(command).json) {
+    printValue(command, job);
+    return;
+  }
+  const rawJd = job.rawJd.endsWith('\n') ? job.rawJd : `${job.rawJd}\n`;
+  process.stdout.write(`${targetJobHeader(job)}\n\n--- raw JD ---\n${rawJd}`);
+}
+
+function printTargetJobList(jobs: TargetJob[]): void {
+  if (jobs.length === 0) {
+    process.stdout.write('(no target jobs)\n');
+    return;
+  }
+  const header = ['ID', 'COMPANY', 'TITLE', 'UPDATED'];
+  const rows = jobs.map((job) => [job.id, job.company ?? '-', job.title, job.updatedAt]);
+  const widths = header.map((label, index) =>
+    Math.max(label.length, ...rows.map((row) => (row[index] ?? '').length))
+  );
+  const format = (row: string[]): string =>
+    row.map((cell, index) => cell.padEnd(widths[index] ?? 0)).join('  ').trimEnd();
+  process.stdout.write([format(header), ...rows.map(format)].join('\n') + '\n');
+}
+
+interface RawJdOptions {
+  jd?: string;
+  jdFile?: string;
+}
+
+async function readStdinText(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+/**
+ * Raw JD is long text, so `--jd-file` / stdin are first-class input paths.
+ * The text is returned verbatim; only TargetJob validation decides if it is
+ * usable.
+ */
+async function readRawJd(options: RawJdOptions): Promise<string> {
+  if (options.jd !== undefined && options.jdFile !== undefined) {
+    throw new Error('--jd 与 --jd-file 不能同时使用');
+  }
+  if (options.jdFile !== undefined) {
+    return options.jdFile === '-' ? readStdinText() : readFile(resolve(options.jdFile), 'utf8');
+  }
+  if (options.jd !== undefined) {
+    return options.jd;
+  }
+  if (process.stdin.isTTY) {
+    throw new Error('缺少 raw JD：请使用 --jd、--jd-file <path>，或通过 stdin 传入');
+  }
+  return readStdinText();
 }
 
 async function writeArtifact(command: Command, artifact: { fileName: string; content: string }, output?: string) {
@@ -395,6 +490,105 @@ program
           status: fact.status
         }))
       });
+    });
+  });
+
+const target = program
+  .command('target')
+  .description('管理目标岗位（Target Job）上下文；Target Job 不是 Career 事实源');
+
+target
+  .command('add')
+  .description('创建 Target Job；raw JD 可来自 --jd、--jd-file 或 stdin')
+  .requiredOption('--title <title>', '岗位名称')
+  .option('--company <company>', '公司名称（可选）')
+  .option('--jd <text>', 'raw JD 文本（适合较短内容）')
+  .option('--jd-file <path>', '从文件读取 raw JD，使用 - 读取 stdin')
+  .action(async (options: Record<string, string>, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const title = options.title;
+      const company = options.company;
+      const rawJd = await readRawJd(options);
+      const job = createTargetJob({
+        title: title ?? '',
+        ...(company && company.trim().length > 0 ? { company } : {}),
+        rawJd
+      });
+      runtime.repository.saveTargetJob(job);
+      printTargetJobSummary(command, job);
+    });
+  });
+
+target
+  .command('list')
+  .description('列出 Target Job 概要（不含 raw JD）')
+  .action(async (_options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const jobs = runtime.repository.listTargetJobs();
+      if (rootOptions(command).json) {
+        printValue(command, jobs.map(targetJobSummary));
+        return;
+      }
+      printTargetJobList(jobs);
+    });
+  });
+
+target
+  .command('show <id>')
+  .description('显示 Target Job 完整信息，包括 raw JD')
+  .action(async (id: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const job = runtime.repository.getTargetJob(id);
+      if (!job) {
+        throw new Error(`TargetJob not found: ${id}`);
+      }
+      printTargetJobDetail(command, job);
+    });
+  });
+
+target
+  .command('update <id>')
+  .description('更新 Target Job 的 title / company / raw JD；id 保持不变')
+  .option('--title <title>', '新的岗位名称')
+  .option('--company <company>', '新的公司名称；传空字符串表示清除')
+  .option('--jd <text>', '新的 raw JD 文本')
+  .option('--jd-file <path>', '从文件读取新的 raw JD，使用 - 读取 stdin')
+  .action(async (id: string, options: Record<string, string>, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const patch: TargetJobPatch = {};
+      const title = options.title;
+      const company = options.company;
+      if (title !== undefined) {
+        patch.title = title;
+      }
+      if (company !== undefined) {
+        patch.company = company.trim().length === 0 ? null : company;
+      }
+      if (options.jd !== undefined || options.jdFile !== undefined) {
+        patch.rawJd = await readRawJd(options);
+      }
+      const before = runtime.repository.getTargetJob(id);
+      if (!before) {
+        throw new Error(`TargetJob not found: ${id}`);
+      }
+      const updated = runtime.repository.updateTargetJob(id, patch);
+      if (!updated) {
+        throw new Error(`TargetJob not found: ${id}`);
+      }
+      const changed: string[] = [];
+      if (updated.title !== before.title) {
+        changed.push('title');
+      }
+      if (updated.company !== before.company) {
+        changed.push('company');
+      }
+      if (updated.rawJd !== before.rawJd) {
+        changed.push('rawJd', 'rawJdHash');
+      }
+      if (updated.updatedAt !== before.updatedAt) {
+        changed.push('updatedAt');
+      }
+      printTargetJobSummary(command, updated, changed);
     });
   });
 

@@ -7,7 +7,7 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │ CLI                                                          │
-│ scan github / scan local / add / facts / render / import     │
+│ scan github / scan local / add / facts / target / render     │
 └───────────────┬──────────────────────────────────────────────┘
                 │ orchestration
 ┌───────────────▼──────────────────────────────────────────────┐
@@ -28,6 +28,12 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 │ Markdown Resume · GitHub Profile README                      │
 └──────────────────────────────────────────────────────────────┘
 
+┌──────────────────────────────────────────────────────────────┐
+│ Target Job Domain（与事实链正交，不进入 Career IR）          │
+│ TargetJob: company / title / rawJd / rawJdHash               │
+│ identity ≠ content hash；raw JD 是 source-of-truth input      │
+└──────────────────────────────────────────────────────────────┘
+
                          ↕
                Storage Contract → SQLite
 ```
@@ -36,8 +42,8 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 
 | Module | 责任 | 不负责 |
 | --- | --- | --- |
-| `packages/core` | Domain types、validation、provenance、fact pipeline、Fact → Achievement compiler、source/renderer/repository contracts | SQLite、HTTP、LLM、CLI |
-| `packages/storage` | `CareerRepository` 的 Node.js `node:sqlite` 实现、IR import/export、用户级路径 | 事实推断、渲染、网络扫描 |
+| `packages/core` | Domain types、validation、provenance、fact pipeline、Fact → Achievement compiler、TargetJob domain contract、source/renderer/repository contracts | SQLite、HTTP、LLM、CLI、JD 解析 |
+| `packages/storage` | `CareerRepository` 与 `TargetJobRepository` 的 Node.js `node:sqlite` 实现、IR import/export、用户级路径 | 事实推断、渲染、网络扫描、JD 解析 |
 | `packages/source-github` | GitHub REST metadata adapter、identity attribution、limited external PR discovery | 把 metadata 直接变成 confirmed fact、把 repository activity 当作用户贡献 |
 | `packages/source-local-git` | 显式目录的 Git metadata scanner 与 scanner policy | 读取/上传源码、能力评分 |
 | `packages/source-chat` | Manual/Chat evidence、AIProvider contract、deterministic extractor | 直接写 confirmed history |
@@ -56,6 +62,26 @@ Career Compiler 的核心资产是 Career Data Model、Evidence Provenance、Car
 7. Core 从 confirmed facts 构建 `CareerProfile`，再封装成 versioned `CareerIR`（当前 `0.2`）。
 8. Renderer 只读取 Career IR 并输出 Markdown artifact。
 
+## 两条独立输入线
+
+```text
+Career Evidence → CareerFact → CareerAchievement ──┐
+                                                   ↓
+                                            Evidence Matcher（未来）
+                                                   ↑
+TargetJob → JD Requirement（未来）─────────────────┘
+```
+
+Career 事实链与 Target Job 正交：
+
+- `CareerFact` / `CareerAchievement` 描述用户已经做过什么，必须由 confirmed facts 与 evidence 支持；
+- `TargetJob` 描述用户想申请什么，只保存目标上下文（`company` / `title` / `rawJd` / `rawJdHash`），不是用户能力证明；
+- 保存、更新 Target Job 不会修改 evidence、facts、achievements 或 profile，`TargetJob` 也不进入 `CareerIR`；
+- Renderer 仍然只消费 Career IR，不读取 JD；
+- 未来只有 Evidence Matcher 同时消费两条线，它的输出是可重新计算的分析结果，而不是新的事实源。
+
+Target Job 的 contract、stale 语义与 CLI 见 [Target Job](target-job.md)。
+
 ## 隐私边界
 
 原始文件默认留在本机。Local Git 只需要 file path、Git metadata、有限 README/project metadata；默认 denylist 包含 `.env`、credentials/secrets、`node_modules`、`.git`、build/cache 目录，binary 也不进入 language discovery。未来如增加远程 AI provider，调用方必须显式决定发送哪些 normalized evidence，Provider 不拥有数据库写入权限。
@@ -68,4 +94,4 @@ V0.1 采用 SQLite，是因为 evidence、facts、many-to-many provenance links 
 
 ## 明确不做
 
-本阶段不引入 Web UI、Desktop、云同步、OAuth、账户系统、Vector DB、RAG、Knowledge Graph、Agent framework 或自动发布。最大风险是 domain model 与 provenance 是否成立，而不是 UI 数量。
+本阶段不引入 Web UI、Desktop、云同步、OAuth、账户系统、Vector DB、RAG、Knowledge Graph、Agent framework 或自动发布。Target Job 目前只保存目标上下文：不解析 JD、不做 Evidence Matching、不生成 target-aware resume。最大风险是 domain model 与 provenance 是否成立，而不是 UI 数量。

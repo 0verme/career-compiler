@@ -208,6 +208,57 @@ export interface CareerIR {
   evidence: CareerEvidence[];
 }
 
+/**
+ * A target job the user wants to apply for. Target Job is target context, not
+ * career evidence: it never creates, confirms or rewrites CareerEvidence,
+ * CareerFact, CareerAchievement or CareerProfile.
+ */
+export interface TargetJob {
+  /** Stable identity; editing company/title/rawJd never changes it. */
+  id: string;
+  company?: string;
+  title: string;
+  /** Verbatim user-provided JD, kept as the source of truth for future parsing. */
+  rawJd: string;
+  /** Deterministic fingerprint of rawJd, used for change/stale detection only. */
+  rawJdHash: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Input for creating a new TargetJob. */
+export interface TargetJobDraft {
+  company?: string;
+  title: string;
+  rawJd: string;
+}
+
+/** Partial update for an existing TargetJob. `company: null` clears the company. */
+export interface TargetJobPatch {
+  company?: string | null;
+  title?: string;
+  rawJd?: string;
+}
+
+export interface TargetJobUpdateOptions {
+  now?: string;
+}
+
+/**
+ * Persistence contract for Target Job context. Separate from CareerRepository
+ * because Target Job is a second, independent input line into the compiler.
+ */
+export interface TargetJobRepository {
+  saveTargetJob(job: TargetJob): void;
+  getTargetJob(id: string): TargetJob | undefined;
+  listTargetJobs(): TargetJob[];
+  updateTargetJob(
+    id: string,
+    patch: TargetJobPatch,
+    options?: TargetJobUpdateOptions
+  ): TargetJob | undefined;
+}
+
 export interface SourceRunContext {
   now: string;
   scanner?: ScannerPolicy;

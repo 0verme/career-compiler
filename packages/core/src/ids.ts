@@ -1,9 +1,9 @@
 import type { CareerEvidenceRef, CareerFact, SourceType } from './types.js';
 
 /**
- * Stable identity and normalization helpers shared by the fact pipeline and the
- * achievement compiler. Kept separate so both layers can use them without a
- * circular import.
+ * Stable identity and normalization helpers shared by the fact pipeline, the
+ * achievement compiler and the target job domain. Kept separate so every layer
+ * can use them without a circular import.
  */
 export function stableHash(value: string): string {
   let hash = 2166136261;
@@ -20,6 +20,25 @@ export function createStableId(prefix: string, value: string): string {
 
 export function normalizeText(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * Target Job identity is intentionally not content-derived: editing company,
+ * title or the JD text must never produce a new logical target job. New jobs
+ * get a fresh id; `hashRawJd` only tracks JD content changes.
+ */
+export function createTargetJobId(): string {
+  return `targetjob_${globalThis.crypto.randomUUID()}`;
+}
+
+/**
+ * Deterministic content fingerprint for a raw JD. It answers "did the stored
+ * text change?", not "which target job is this?". 32-bit FNV-1a matches the
+ * existing stable-hash convention; it is a change detector, not a security
+ * hash.
+ */
+export function hashRawJd(rawJd: string): string {
+  return stableHash(rawJd);
 }
 
 export function createEvidenceId(
