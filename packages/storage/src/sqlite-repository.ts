@@ -8,9 +8,13 @@ import type {
   CareerFactStatus,
   CareerIR,
   CareerRepository,
+  CompilationSnapshot,
   JdRequirement,
   JdRequirementRepository,
   JsonObject,
+  ResumeCompilationRepository,
+  ResumePatchProposal,
+  ResumeVariant,
   SourceType,
   TargetJob,
   TargetJobPatch,
@@ -24,7 +28,10 @@ import {
   validateCareerEvidence,
   validateCareerFact,
   validateCareerIR,
+  validateCompilationSnapshot,
   validateJdRequirement,
+  validateResumePatchProposal,
+  validateResumeVariant,
   validateTargetJob
 } from '@career-compiler/core';
 
@@ -161,8 +168,65 @@ function parseJdRequirement(row: SQLiteRow): JdRequirement {
   });
 }
 
+function parseJsonValue(serialized: string, field: string): unknown {
+  try {
+    return JSON.parse(serialized) as unknown;
+  } catch (error) {
+    throw new Error(
+      `Stored ${field} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+function parseResumePatchProposal(row: SQLiteRow): ResumePatchProposal {
+  return validateResumePatchProposal({
+    id: rowString(row, 'id'),
+    baseIrHash: rowString(row, 'base_ir_hash'),
+    ...(rowNullableString(row, 'target_job_id')
+      ? { targetJobId: rowNullableString(row, 'target_job_id') }
+      : {}),
+    strategyId: rowString(row, 'strategy_id'),
+    operations: parseJsonValue(rowString(row, 'operations_json'), 'proposal.operations'),
+    status: rowString(row, 'status'),
+    createdAt: rowString(row, 'created_at'),
+    ...(rowNullableString(row, 'applied_at')
+      ? { appliedAt: rowNullableString(row, 'applied_at') }
+      : {}),
+    ...(rowNullableString(row, 'rejected_at')
+      ? { rejectedAt: rowNullableString(row, 'rejected_at') }
+      : {})
+  });
+}
+
+function parseResumeVariant(row: SQLiteRow): ResumeVariant {
+  return validateResumeVariant({
+    id: rowString(row, 'id'),
+    ...(rowNullableString(row, 'target_job_id')
+      ? { targetJobId: rowNullableString(row, 'target_job_id') }
+      : {}),
+    baseIrHash: rowString(row, 'base_ir_hash'),
+    proposalId: rowString(row, 'proposal_id'),
+    view: parseJsonValue(rowString(row, 'view_json'), 'variant.view'),
+    revision: Number(row.revision),
+    createdAt: rowString(row, 'created_at'),
+    updatedAt: rowString(row, 'updated_at')
+  });
+}
+
+function parseCompilationSnapshot(row: SQLiteRow): CompilationSnapshot {
+  const previousJson = rowNullableString(row, 'previous_json');
+  return validateCompilationSnapshot({
+    id: rowString(row, 'id'),
+    variantId: rowString(row, 'variant_id'),
+    baseIrHash: rowString(row, 'base_ir_hash'),
+    proposalId: rowString(row, 'proposal_id'),
+    previous: previousJson ? parseJsonValue(previousJson, 'snapshot.previous') : null,
+    createdAt: rowString(row, 'created_at')
+  });
+}
+
 export class SQLiteCareerRepository
-  implements CareerRepository, TargetJobRepository, JdRequirementRepository {
+  implements CareerRepository, TargetJobRepository, JdRequirementRepository, ResumeCompilationRepository {
   private readonly database: DatabaseSync;
 
   constructor(options: SQLiteCareerRepositoryOptions) {
@@ -254,6 +318,43 @@ export class SQLiteCareerRepository
       );
       CREATE INDEX IF NOT EXISTS idx_jd_requirements_target_job
         ON jd_requirements(target_job_id);
+
+      CREATE TABLE IF NOT EXISTS resume_patch_proposals (
+        id TEXT PRIMARY KEY,
+        base_ir_hash TEXT NOT NULL,
+        target_job_id TEXT,
+        strategy_id TEXT NOT NULL,
+        operations_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        applied_at TEXT,
+        rejected_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_resume_patch_proposals_status
+        ON resume_patch_proposals(status);
+
+      CREATE TABLE IF NOT EXISTS resume_variants (
+        id TEXT PRIMARY KEY,
+        target_job_id TEXT UNIQUE,
+        base_ir_hash TEXT NOT NULL,
+        proposal_id TEXT NOT NULL REFERENCES resume_patch_proposals(id),
+        view_json TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_resume_variants_updated_at ON resume_variants(updated_at);
+
+      CREATE TABLE IF NOT EXISTS compilation_snapshots (
+        id TEXT PRIMARY KEY,
+        variant_id TEXT NOT NULL REFERENCES resume_variants(id) ON DELETE CASCADE,
+        base_ir_hash TEXT NOT NULL,
+        proposal_id TEXT NOT NULL,
+        previous_json TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_compilation_snapshots_variant
+        ON compilation_snapshots(variant_id);
     `);
     this.ensureEvidenceColumns();
   }
@@ -658,6 +759,207 @@ export class SQLiteCareerRepository
 
   saveJdRequirement(requirement: JdRequirement): void {
     this.transaction(() => this.writeJdRequirement(requirement));
+  }
+
+  private writeResumePatchProposal(proposal: ResumePatchProposal): void {
+    const validated = validateResumePatchProposal(proposal);
+    this.database
+      .prepare(`
+        INSERT INTO resume_patch_proposals
+          (id, base_ir_hash, target_job_id, strategy_id, operations_json,
+           status, created_at, applied_at, rejected_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          status = excluded.status,
+          applied_at = excluded.applied_at,
+          rejected_at = excluded.rejected_at
+      `)
+      .run(
+        validated.id,
+        validated.baseIrHash,
+        validated.targetJobId ?? null,
+        validated.strategyId,
+        JSON.stringify(validated.operations),
+        validated.status,
+        validated.createdAt,
+        validated.appliedAt ?? null,
+        validated.rejectedAt ?? null
+      );
+  }
+
+  private writeResumeVariant(variant: ResumeVariant): void {
+    const validated = validateResumeVariant(variant);
+    this.database
+      .prepare(`
+        INSERT INTO resume_variants
+          (id, target_job_id, base_ir_hash, proposal_id, view_json, revision,
+           created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          target_job_id = excluded.target_job_id,
+          base_ir_hash = excluded.base_ir_hash,
+          proposal_id = excluded.proposal_id,
+          view_json = excluded.view_json,
+          revision = excluded.revision,
+          updated_at = excluded.updated_at
+      `)
+      .run(
+        validated.id,
+        validated.targetJobId ?? null,
+        validated.baseIrHash,
+        validated.proposalId,
+        JSON.stringify(validated.view),
+        validated.revision,
+        validated.createdAt,
+        validated.updatedAt
+      );
+  }
+
+  private writeCompilationSnapshot(snapshot: CompilationSnapshot): void {
+    const validated = validateCompilationSnapshot(snapshot);
+    this.database
+      .prepare(`
+        INSERT INTO compilation_snapshots
+          (id, variant_id, base_ir_hash, proposal_id, previous_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          variant_id = excluded.variant_id,
+          base_ir_hash = excluded.base_ir_hash,
+          proposal_id = excluded.proposal_id,
+          previous_json = excluded.previous_json,
+          created_at = excluded.created_at
+      `)
+      .run(
+        validated.id,
+        validated.variantId,
+        validated.baseIrHash,
+        validated.proposalId,
+        validated.previous === null ? null : JSON.stringify(validated.previous),
+        validated.createdAt
+      );
+  }
+
+  saveResumePatchProposal(proposal: ResumePatchProposal): void {
+    this.transaction(() => this.writeResumePatchProposal(proposal));
+  }
+
+  getResumePatchProposal(id: string): ResumePatchProposal | undefined {
+    const row = this.database
+      .prepare('SELECT * FROM resume_patch_proposals WHERE id = ?')
+      .get(id) as SQLiteRow | undefined;
+    return row ? parseResumePatchProposal(row) : undefined;
+  }
+
+  /** Most recently created first, then by id so the order is deterministic. */
+  listResumePatchProposals(): ResumePatchProposal[] {
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const rows = this.database
+      .prepare('SELECT * FROM resume_patch_proposals ORDER BY created_at DESC, id')
+      .all() as unknown as SQLiteRow[];
+    return rows.map(parseResumePatchProposal);
+  }
+
+  getResumeVariant(id: string): ResumeVariant | undefined {
+    const row = this.database.prepare('SELECT * FROM resume_variants WHERE id = ?').get(id) as
+      | SQLiteRow
+      | undefined;
+    return row ? parseResumeVariant(row) : undefined;
+  }
+
+  findResumeVariantByTargetJob(targetJobId: string): ResumeVariant | undefined {
+    const row = this.database
+      .prepare('SELECT * FROM resume_variants WHERE target_job_id = ?')
+      .get(targetJobId) as SQLiteRow | undefined;
+    return row ? parseResumeVariant(row) : undefined;
+  }
+
+  /** Most recently updated first, then by id so the order is deterministic. */
+  listResumeVariants(): ResumeVariant[] {
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const rows = this.database
+      .prepare('SELECT * FROM resume_variants ORDER BY updated_at DESC, id')
+      .all() as unknown as SQLiteRow[];
+    return rows.map(parseResumeVariant);
+  }
+
+  getCompilationSnapshot(id: string): CompilationSnapshot | undefined {
+    const row = this.database
+      .prepare('SELECT * FROM compilation_snapshots WHERE id = ?')
+      .get(id) as SQLiteRow | undefined;
+    return row ? parseCompilationSnapshot(row) : undefined;
+  }
+
+  listCompilationSnapshots(variantId?: string): CompilationSnapshot[] {
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const rows = (variantId
+      ? this.database
+          .prepare(
+            'SELECT * FROM compilation_snapshots WHERE variant_id = ? ORDER BY created_at, id'
+          )
+          .all(variantId)
+      : this.database
+          .prepare('SELECT * FROM compilation_snapshots ORDER BY created_at, id')
+          .all()) as unknown as SQLiteRow[];
+    return rows.map(parseCompilationSnapshot);
+  }
+
+  /**
+   * Persist an apply atomically: proposal status, variant revision and rollback
+   * snapshot either all exist or none do. The proposal is written first because
+   * the variant references it.
+   */
+  commitResumeCompilation(
+    proposal: ResumePatchProposal,
+    variant: ResumeVariant,
+    snapshot: CompilationSnapshot
+  ): void {
+    const validatedProposal = validateResumePatchProposal(proposal);
+    const validatedVariant = validateResumeVariant(variant);
+    const validatedSnapshot = validateCompilationSnapshot(snapshot);
+    if (validatedSnapshot.variantId !== validatedVariant.id) {
+      throw new Error(
+        `CompilationSnapshot ${validatedSnapshot.id} does not belong to variant ${validatedVariant.id}`
+      );
+    }
+    this.transaction(() => {
+      this.writeResumePatchProposal(validatedProposal);
+      this.writeResumeVariant(validatedVariant);
+      this.writeCompilationSnapshot(validatedSnapshot);
+    });
+  }
+
+  /**
+   * Persist a rollback atomically: consume the snapshot, restore or delete the
+   * variant and return the proposal to draft.
+   */
+  commitResumeRevert(
+    proposal: ResumePatchProposal,
+    variant: ResumeVariant | undefined,
+    snapshotId: string
+  ): void {
+    const validatedProposal = validateResumePatchProposal(proposal);
+    const validatedVariant = variant ? validateResumeVariant(variant) : undefined;
+    this.transaction(() => {
+      const row = this.database
+        .prepare('SELECT variant_id FROM compilation_snapshots WHERE id = ?')
+        .get(snapshotId) as SQLiteRow | undefined;
+      if (!row) {
+        throw new Error(`CompilationSnapshot not found: ${snapshotId}`);
+      }
+      const variantId = rowString(row, 'variant_id');
+      if (validatedVariant !== undefined && validatedVariant.id !== variantId) {
+        throw new Error(
+          `CompilationSnapshot ${snapshotId} does not belong to variant ${validatedVariant.id}`
+        );
+      }
+      this.database.prepare('DELETE FROM compilation_snapshots WHERE id = ?').run(snapshotId);
+      if (validatedVariant) {
+        this.writeResumeVariant(validatedVariant);
+      } else {
+        this.database.prepare('DELETE FROM resume_variants WHERE id = ?').run(variantId);
+      }
+      this.writeResumePatchProposal(validatedProposal);
+    });
   }
 
   close(): void {

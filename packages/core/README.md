@@ -10,4 +10,6 @@ Career Compiler 的 framework-independent domain model：`CareerIdentity`、`Car
 
 `JdRequirement` / `JdRequirementSet` 把 raw JD 理解为可审阅的岗位要求：`rawQuote` 是逐字且可定位的 JD 片段，`id` 由 target job 版本与 quote range 确定性派生，解析结果默认 `parsed`，只有 `confirmedJdRequirements()` 的输出才允许被后续 Evidence Matcher 消费。解析器通过 `JdRequirementParser` contract 可替换，不依赖任何 LLM provider，也不触碰事实链。
 
+Resume Compilation 层把 Career IR 的 presentation projection 编译为可审阅的 `ResumePatchProposal`，再 apply 为 `ResumeVariant`：proposal 内容寻址、只包含 select / hide / reorder / section visibility / skill emphasis 等结构操作，`baseIrHash` 使用 canonical serialization + SHA-256；apply 前校验 IR 未变化，reject 不动 variant，revert 通过最小 `CompilationSnapshot` 回退。该层不修改 fact / evidence / achievement。
+
 该 package 不依赖 SQLite、HTTP client 或任何 AI provider。

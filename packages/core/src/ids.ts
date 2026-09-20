@@ -32,6 +32,18 @@ export function createTargetJobId(): string {
 }
 
 /**
+ * Compilation objects mutate over time (variant revisions, snapshot lifecycle),
+ * so their identity is fresh like TargetJob rather than content-derived.
+ */
+export function createResumeVariantId(): string {
+  return `variant_${globalThis.crypto.randomUUID()}`;
+}
+
+export function createCompilationSnapshotId(): string {
+  return `snapshot_${globalThis.crypto.randomUUID()}`;
+}
+
+/**
  * Deterministic content fingerprint for a raw JD. It answers "did the stored
  * text change?", not "which target job is this?". 32-bit FNV-1a matches the
  * existing stable-hash convention; it is a change detector, not a security

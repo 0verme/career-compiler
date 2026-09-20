@@ -352,6 +352,201 @@ export interface JdRequirementRepository {
   saveJdRequirement(requirement: JdRequirement): void;
 }
 
+/**
+ * Resume compilation layer.
+ *
+ * A proposal is a reviewable, content-addressed description of structural
+ * changes to the presentation projection. Applying a proposal produces a
+ * ResumeVariant; Career Truth (facts, evidence, achievements) is never
+ * rewritten. Patch operations are structural only (selection / ordering /
+ * visibility / emphasis) and may not introduce free-form text.
+ */
+export type ResumeSectionId =
+  | 'summary'
+  | 'experience'
+  | 'projects'
+  | 'skills'
+  | 'achievements';
+
+export type ResumePatchProposalStatus = 'draft' | 'applied' | 'rejected';
+
+interface ResumePatchOperationBase {
+  /** Human-readable reason shown during review. */
+  reason: string;
+}
+
+export interface ResumePatchSelectAchievementOperation extends ResumePatchOperationBase {
+  op: 'select-achievement';
+  achievementId: string;
+}
+
+export interface ResumePatchHideAchievementOperation extends ResumePatchOperationBase {
+  op: 'hide-achievement';
+  achievementId: string;
+}
+
+export interface ResumePatchReorderAchievementsOperation extends ResumePatchOperationBase {
+  op: 'reorder-achievements';
+  achievementIds: string[];
+}
+
+export interface ResumePatchSetSectionOrderOperation extends ResumePatchOperationBase {
+  op: 'set-section-order';
+  sections: ResumeSectionId[];
+}
+
+export interface ResumePatchSetSectionVisibilityOperation extends ResumePatchOperationBase {
+  op: 'set-section-visibility';
+  section: ResumeSectionId;
+  visible: boolean;
+}
+
+export interface ResumePatchEmphasizeSkillOperation extends ResumePatchOperationBase {
+  op: 'emphasize-skill';
+  skillId: string;
+}
+
+export type ResumePatchOperation =
+  | ResumePatchSelectAchievementOperation
+  | ResumePatchHideAchievementOperation
+  | ResumePatchReorderAchievementsOperation
+  | ResumePatchSetSectionOrderOperation
+  | ResumePatchSetSectionVisibilityOperation
+  | ResumePatchEmphasizeSkillOperation;
+
+/**
+ * Declarative structural view of a resume variant. This is presentation state,
+ * not a copy of career content: it only says what is included and in what
+ * order. Hidden items stay in Career Truth and remain renderable by other
+ * variants.
+ */
+export interface ResumeViewConfig {
+  /** Complete section order; every `ResumeSectionId` appears exactly once. */
+  sectionOrder: ResumeSectionId[];
+  /** Sections excluded from the rendered view. */
+  hiddenSections: ResumeSectionId[];
+  /** Explicit order prefix for included achievements; unlisted ids keep compiler order. */
+  achievementOrder: string[];
+  /** Achievement ids excluded from the view. */
+  hiddenAchievementIds: string[];
+  /** Skills moved to the front of the skills list. */
+  emphasizedSkillIds: string[];
+}
+
+/**
+ * A reviewable compilation proposal. Identity is content-addressed: the same
+ * IR revision + strategy + target + operations always produce the same id and
+ * content, so proposals are reproducible and deduplicated. Lifecycle metadata
+ * (`status`, timestamps) is not part of the identity.
+ */
+export interface ResumePatchProposal {
+  id: string;
+  /** Semantic CareerIR fingerprint the proposal was compiled from. */
+  baseIrHash: string;
+  targetJobId?: string;
+  /** Strategy that produced this proposal (for example `structural-v1`). */
+  strategyId: string;
+  operations: ResumePatchOperation[];
+  status: ResumePatchProposalStatus;
+  createdAt: string;
+  appliedAt?: string;
+  rejectedAt?: string;
+}
+
+/**
+ * A compiled, target-aware presentation state. The variant stores only the
+ * structural view; it never copies career content.
+ */
+export interface ResumeVariant {
+  id: string;
+  targetJobId?: string;
+  baseIrHash: string;
+  /** Proposal of the most recent apply; restored state on revert. */
+  proposalId: string;
+  view: ResumeViewConfig;
+  /** Monotonic per variant under apply/revert cycles. */
+  revision: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Snapshot of the variant state a proposal was applied on top of. */
+export interface ResumeVariantState {
+  targetJobId?: string;
+  baseIrHash: string;
+  proposalId: string;
+  view: ResumeViewConfig;
+  revision: number;
+}
+
+/**
+ * Minimal apply-time snapshot used to roll back a single apply. Full revision
+ * history / content addressing belongs to the snapshot history roadmap item.
+ */
+export interface CompilationSnapshot {
+  id: string;
+  variantId: string;
+  baseIrHash: string;
+  proposalId: string;
+  /** `null` when the applied proposal created the variant. */
+  previous: ResumeVariantState | null;
+  createdAt: string;
+}
+
+/** Explicit structural directives consumed by the deterministic strategy. */
+export interface ResumeCompilationDirectives {
+  selectAchievementIds?: string[];
+  hideAchievementIds?: string[];
+  achievementOrder?: string[];
+  sectionOrder?: ResumeSectionId[];
+  hiddenSections?: ResumeSectionId[];
+  emphasizedSkillIds?: string[];
+}
+
+export interface ResumeCompilationInput {
+  targetJobId?: string;
+  directives: ResumeCompilationDirectives;
+}
+
+/**
+ * Compilation strategy contract. v1 only ships a deterministic structural
+ * strategy; future JD / matrix driven strategies implement the same interface
+ * and must not modify Career Truth either.
+ */
+export interface ResumeCompilationStrategy {
+  readonly id: string;
+  propose(
+    ir: CareerIR,
+    input: ResumeCompilationInput,
+    options?: { now?: string }
+  ): ResumePatchProposal;
+}
+
+/**
+ * Persistence contract for the compilation layer. Apply / revert are committed
+ * atomically so a failed apply never leaves a half-written variant.
+ */
+export interface ResumeCompilationRepository {
+  saveResumePatchProposal(proposal: ResumePatchProposal): void;
+  getResumePatchProposal(id: string): ResumePatchProposal | undefined;
+  listResumePatchProposals(): ResumePatchProposal[];
+  getResumeVariant(id: string): ResumeVariant | undefined;
+  findResumeVariantByTargetJob(targetJobId: string): ResumeVariant | undefined;
+  listResumeVariants(): ResumeVariant[];
+  getCompilationSnapshot(id: string): CompilationSnapshot | undefined;
+  listCompilationSnapshots(variantId?: string): CompilationSnapshot[];
+  commitResumeCompilation(
+    proposal: ResumePatchProposal,
+    variant: ResumeVariant,
+    snapshot: CompilationSnapshot
+  ): void;
+  commitResumeRevert(
+    proposal: ResumePatchProposal,
+    variant: ResumeVariant | undefined,
+    snapshotId: string
+  ): void;
+}
+
 export interface SourceRunContext {
   now: string;
   scanner?: ScannerPolicy;
@@ -416,6 +611,15 @@ export const CAREER_IR_SCHEMA_VERSION = '0.2' as const;
 
 /** Previous IR schema. Parsing it migrates achievements to the 0.2 contract. */
 export const CAREER_IR_SCHEMA_VERSION_V01 = '0.1' as const;
+
+/** Default resume section layout, shared by the strategy validation and renderer. */
+export const DEFAULT_RESUME_SECTION_ORDER: readonly ResumeSectionId[] = [
+  'summary',
+  'experience',
+  'projects',
+  'skills',
+  'achievements'
+];
 
 export const DEFAULT_SCANNER_POLICY: ScannerPolicy = {
   maxDepth: 3,

@@ -6,6 +6,7 @@ import type {
   CareerEvidenceRef,
   CareerFact,
   CareerFactStatus,
+  CompilationSnapshot,
   EvidenceAttribution,
   EvidenceRelation,
   CareerIdentity,
@@ -19,11 +20,19 @@ import type {
   JdRequirementStatus,
   JsonObject,
   JsonValue,
+  ResumePatchOperation,
+  ResumePatchProposal,
+  ResumePatchProposalStatus,
+  ResumeSectionId,
+  ResumeVariant,
+  ResumeVariantState,
+  ResumeViewConfig,
   TargetJob,
   TargetJobDraft,
   TargetJobPatch
 } from './types.js';
-import { CAREER_IR_SCHEMA_VERSION } from './types.js';
+import { CAREER_IR_SCHEMA_VERSION, DEFAULT_RESUME_SECTION_ORDER } from './types.js';
+import { createResumePatchProposalId } from './canonical.js';
 import {
   createJdRequirementId,
   experienceIdFromFact,
@@ -733,4 +742,254 @@ export function validateJdRequirementEditPatch(value: unknown): JdRequirementEdi
     assertNonEmptyString(patch.statement, 'requirement.statement');
   }
   return patch;
+}
+
+const RESUME_SECTION_IDS: ResumeSectionId[] = [...DEFAULT_RESUME_SECTION_ORDER];
+
+export function isResumeSectionId(value: unknown): value is ResumeSectionId {
+  return typeof value === 'string' && (RESUME_SECTION_IDS as string[]).includes(value);
+}
+
+function assertSha256Hex(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new DomainValidationError(`${field} must be a SHA-256 hex digest`);
+  }
+}
+
+function assertStringArray(value: unknown, field: string): asserts value is string[] {
+  if (!Array.isArray(value)) {
+    throw new DomainValidationError(`${field} must be an array`);
+  }
+  value.forEach((item, index) => assertNonEmptyString(item, `${field}[${index}]`));
+  if (new Set(value).size !== value.length) {
+    throw new DomainValidationError(`${field} must not contain duplicates`);
+  }
+}
+
+function assertSectionPermutation(value: unknown, field: string): asserts value is ResumeSectionId[] {
+  if (
+    !Array.isArray(value) ||
+    value.length !== RESUME_SECTION_IDS.length ||
+    !value.every(isResumeSectionId) ||
+    new Set(value).size !== value.length
+  ) {
+    throw new DomainValidationError(
+      `${field} must contain every resume section exactly once: ${RESUME_SECTION_IDS.join(', ')}`
+    );
+  }
+}
+
+/** Validates the declarative structural view of a resume variant. */
+export function validateResumeViewConfig(value: unknown): ResumeViewConfig {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('ResumeViewConfig must be an object');
+  }
+  const view = value as Partial<ResumeViewConfig>;
+  assertSectionPermutation(view.sectionOrder, 'view.sectionOrder');
+  if (!Array.isArray(view.hiddenSections) || !view.hiddenSections.every(isResumeSectionId)) {
+    throw new DomainValidationError('view.hiddenSections must be resume sections');
+  }
+  if (new Set(view.hiddenSections).size !== view.hiddenSections.length) {
+    throw new DomainValidationError('view.hiddenSections must not contain duplicates');
+  }
+  assertStringArray(view.achievementOrder, 'view.achievementOrder');
+  assertStringArray(view.hiddenAchievementIds, 'view.hiddenAchievementIds');
+  assertStringArray(view.emphasizedSkillIds, 'view.emphasizedSkillIds');
+  const hidden = new Set(view.hiddenAchievementIds);
+  for (const achievementId of view.achievementOrder) {
+    if (hidden.has(achievementId)) {
+      throw new DomainValidationError(
+        `view.achievementOrder must not contain hidden achievement ${achievementId}`
+      );
+    }
+  }
+  return view as ResumeViewConfig;
+}
+
+function assertResumeOperationReason(value: unknown, field: string): asserts value is string {
+  assertNonEmptyString(value, field);
+}
+
+/** Validates one structural patch operation. Order/selection conflicts are rejected. */
+export function validateResumePatchOperation(
+  value: unknown,
+  index = 0
+): ResumePatchOperation {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError(`operations[${index}] must be an object`);
+  }
+  const operation = value as Record<string, unknown>;
+  assertResumeOperationReason(operation.reason, `operations[${index}].reason`);
+  switch (operation.op) {
+    case 'select-achievement':
+    case 'hide-achievement':
+    case 'emphasize-skill': {
+      const idField = operation.op === 'emphasize-skill' ? 'skillId' : 'achievementId';
+      assertNonEmptyString(operation[idField], `operations[${index}].${idField}`);
+      return operation as unknown as ResumePatchOperation;
+    }
+    case 'reorder-achievements': {
+      assertStringArray(operation.achievementIds, `operations[${index}].achievementIds`);
+      if (operation.achievementIds.length === 0) {
+        throw new DomainValidationError(`operations[${index}].achievementIds must not be empty`);
+      }
+      return operation as unknown as ResumePatchOperation;
+    }
+    case 'set-section-order': {
+      assertSectionPermutation(operation.sections, `operations[${index}].sections`);
+      return operation as unknown as ResumePatchOperation;
+    }
+    case 'set-section-visibility': {
+      if (!isResumeSectionId(operation.section)) {
+        throw new DomainValidationError(`operations[${index}].section is not a resume section`);
+      }
+      if (typeof operation.visible !== 'boolean') {
+        throw new DomainValidationError(`operations[${index}].visible must be a boolean`);
+      }
+      return operation as unknown as ResumePatchOperation;
+    }
+    default:
+      throw new DomainValidationError(
+        `operations[${index}].op is not a supported structural operation: ${String(operation.op)}`
+      );
+  }
+}
+
+function isResumePatchProposalStatus(value: unknown): value is ResumePatchProposalStatus {
+  return value === 'draft' || value === 'applied' || value === 'rejected';
+}
+
+/**
+ * Structural validation of a proposal, including content-addressed identity.
+ * Provenance against a specific CareerIR is checked separately so stored
+ * proposals stay readable after the IR moves on.
+ */
+export function validateResumePatchProposal(value: unknown): ResumePatchProposal {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('ResumePatchProposal must be an object');
+  }
+  const proposal = value as Partial<ResumePatchProposal>;
+  assertNonEmptyString(proposal.id, 'proposal.id');
+  assertSha256Hex(proposal.baseIrHash, 'proposal.baseIrHash');
+  if (proposal.targetJobId !== undefined) {
+    assertNonEmptyString(proposal.targetJobId, 'proposal.targetJobId');
+  }
+  assertNonEmptyString(proposal.strategyId, 'proposal.strategyId');
+  if (!Array.isArray(proposal.operations) || proposal.operations.length === 0) {
+    throw new DomainValidationError('proposal.operations must contain at least one operation');
+  }
+  const operations = proposal.operations.map((operation, index) =>
+    validateResumePatchOperation(operation, index)
+  );
+  const selected = new Set<string>();
+  const hidden = new Set<string>();
+  const ordered = new Set<string>();
+  for (const operation of operations) {
+    if (operation.op === 'select-achievement') {
+      selected.add(operation.achievementId);
+    }
+    if (operation.op === 'hide-achievement') {
+      hidden.add(operation.achievementId);
+    }
+    if (operation.op === 'reorder-achievements') {
+      for (const id of operation.achievementIds) {
+        ordered.add(id);
+      }
+    }
+  }
+  for (const id of selected) {
+    if (hidden.has(id)) {
+      throw new DomainValidationError(
+        `proposal selects and hides the same achievement: ${id}`
+      );
+    }
+  }
+  for (const id of ordered) {
+    if (hidden.has(id)) {
+      throw new DomainValidationError(`proposal reorders a hidden achievement: ${id}`);
+    }
+  }
+  if (!isResumePatchProposalStatus(proposal.status)) {
+    throw new DomainValidationError(`Unsupported proposal status: ${String(proposal.status)}`);
+  }
+  assertIsoDate(proposal.createdAt, 'proposal.createdAt');
+  if (proposal.status === 'applied') {
+    assertIsoDate(proposal.appliedAt, 'proposal.appliedAt');
+    if (proposal.rejectedAt !== undefined) {
+      throw new DomainValidationError('an applied proposal must not carry rejectedAt');
+    }
+  } else if (proposal.status === 'rejected') {
+    assertIsoDate(proposal.rejectedAt, 'proposal.rejectedAt');
+    if (proposal.appliedAt !== undefined) {
+      throw new DomainValidationError('a rejected proposal must not carry appliedAt');
+    }
+  } else if (proposal.appliedAt !== undefined || proposal.rejectedAt !== undefined) {
+    throw new DomainValidationError('a draft proposal must not carry appliedAt or rejectedAt');
+  }
+  const expectedId = createResumePatchProposalId({
+    baseIrHash: proposal.baseIrHash,
+    ...(proposal.targetJobId !== undefined ? { targetJobId: proposal.targetJobId } : {}),
+    strategyId: proposal.strategyId,
+    operations
+  });
+  if (proposal.id !== expectedId) {
+    throw new DomainValidationError(
+      `proposal.id must be content-addressed; expected ${expectedId}, got ${proposal.id}`
+    );
+  }
+  return { ...proposal, operations } as ResumePatchProposal;
+}
+
+/** Validates the variant state a snapshot can restore. */
+export function validateResumeVariantState(value: unknown): ResumeVariantState {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('ResumeVariantState must be an object');
+  }
+  const state = value as Partial<ResumeVariantState>;
+  if (state.targetJobId !== undefined) {
+    assertNonEmptyString(state.targetJobId, 'variantState.targetJobId');
+  }
+  assertSha256Hex(state.baseIrHash, 'variantState.baseIrHash');
+  assertNonEmptyString(state.proposalId, 'variantState.proposalId');
+  validateResumeViewConfig(state.view);
+  if (!Number.isInteger(state.revision) || (state.revision ?? 0) < 1) {
+    throw new DomainValidationError('variantState.revision must be a positive integer');
+  }
+  return state as ResumeVariantState;
+}
+
+/** Validates a persisted resume variant. */
+export function validateResumeVariant(value: unknown): ResumeVariant {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('ResumeVariant must be an object');
+  }
+  const variant = value as Partial<ResumeVariant>;
+  assertNonEmptyString(variant.id, 'variant.id');
+  validateResumeVariantState({
+    ...(variant.targetJobId !== undefined ? { targetJobId: variant.targetJobId } : {}),
+    baseIrHash: variant.baseIrHash,
+    proposalId: variant.proposalId,
+    view: variant.view,
+    revision: variant.revision
+  });
+  assertIsoDate(variant.createdAt, 'variant.createdAt');
+  assertIsoDate(variant.updatedAt, 'variant.updatedAt');
+  return variant as ResumeVariant;
+}
+
+/** Validates an apply-time snapshot used for single-step rollback. */
+export function validateCompilationSnapshot(value: unknown): CompilationSnapshot {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('CompilationSnapshot must be an object');
+  }
+  const snapshot = value as Partial<CompilationSnapshot>;
+  assertNonEmptyString(snapshot.id, 'snapshot.id');
+  assertNonEmptyString(snapshot.variantId, 'snapshot.variantId');
+  assertSha256Hex(snapshot.baseIrHash, 'snapshot.baseIrHash');
+  assertNonEmptyString(snapshot.proposalId, 'snapshot.proposalId');
+  if (snapshot.previous !== null && snapshot.previous !== undefined) {
+    validateResumeVariantState(snapshot.previous);
+  }
+  assertIsoDate(snapshot.createdAt, 'snapshot.createdAt');
+  return { ...snapshot, previous: snapshot.previous ?? null } as CompilationSnapshot;
 }
