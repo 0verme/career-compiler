@@ -35,6 +35,7 @@ Resume.md + GitHub Profile README.md
 - Manual / Chat source：deterministic/mock fact extraction 与可替换 `AIProvider` contract
 - AI Session source：消费 AIUsage 归一化的 Codex / Claude Code / Pi session contract，生成 session / message 级 Career Evidence（含 source path + line range provenance）
 - Target Job domain：稳定 ID、可选 company、title、逐字保存的 raw JD 与 `rawJdHash`，持久化到独立 `target_jobs` 表；`target add/list/show/update` CLI 可管理多个目标岗位
+- Resume Compilation 层：内容寻址 `ResumePatchProposal`、deterministic structural `CompilationStrategy`、`ResumeVariant` 与最小 `CompilationSnapshot`；只有 draft 且 `baseIrHash`（canonical SHA-256）与当前 CareerIR 一致的 proposal 才能 apply，apply / reject / revert 不修改 Career Truth
 - Markdown Resume renderer
 - Markdown GitHub Profile renderer
 - versioned Career IR JSON export/import（当前 `0.2`，加载 `0.1` 文档时显式迁移）
@@ -68,6 +69,10 @@ career-compiler target add --title "Data Platform Lead" --company "某券商" --
 career-compiler target list
 career-compiler target show <target-job-id>
 career-compiler target update <target-job-id> --jd-file jd-v2.md
+career-compiler compile propose --target <target-job-id> --hide-achievement <achievement-id> --section-order skills,achievements,summary,experience,projects
+career-compiler compile apply <proposal-id>
+career-compiler render resume --variant <variant-id> --output resume.md
+career-compiler compile revert <snapshot-id>
 career-compiler render resume --output resume.md
 career-compiler render github-profile --output github-profile.md
 ```
@@ -127,18 +132,20 @@ Career Compiler **不认为 repository activity == user contribution**。GitHub 
 - AI Session source 不解析 vendor JSONL、不扫描磁盘，只消费上游归一化的 session contract；本地 session 尚无可靠 identity 绑定，因此统一标记 `context`，停在 Evidence 层。
 - Renderer 只消费 Career IR，不理解 GitHub、Pi、Claude 或 Local Git 的来源细节。
 - Target Job 是目标上下文，不是职业事实：它单独存储，不进入 Career IR，也不会因为保存或修改 JD 而改写 CareerFact / CareerAchievement / CareerProfile。修改 raw JD 只会改变 `rawJdHash`，作为未来派生分析 stale 的基础。
+- Resume Compilation 只做可审阅的结构投影：proposal 不修改 Career Truth，variant 只记录选择 / 顺序 / 可见性 / 强调；stale proposal 与 stale variant 都会被拒绝。完整语义见 [Resume Compilation](docs/architecture/resume-compilation.md)。
 
 ## 暂不实现
 
 V0.1 明确不包含 Web Dashboard、Tauri、PDF/DOCX、OAuth、LinkedIn/X、ChatGPT/Claude/Pi/Codex raw history scanner（只消费 AIUsage 归一化 contract）、Vector DB、RAG、Knowledge Graph、MCP、账号系统、云同步、SaaS backend、自动发布 GitHub README。
 
-Target Job 目前只做到 domain + storage + minimal CLI：不解析 JD、不做 LLM/prompt/embedding、不做 Evidence Matcher / JD Evidence Matrix / Gap、不做 Resume Variant / target-aware resume、不做 ATS 分数或职位抓取。下一阶段是 `TargetJob → JD Requirement Parser`。
+Target Job 目前做到 domain + storage + minimal CLI；Resume Compilation 已提供 structural proposal / variant 与最小回退。当前仍不解析 JD、不做 LLM/prompt/embedding、不做 Evidence Matcher / JD Evidence Matrix / Gap、不做 ATS 分数或职位抓取；AI rewrite、PDF/DOCX 与完整 presentation 契约也不在本轮。下一阶段是 `TargetJob → JD Requirement Parser`。
 
 ## 文档
 
 - [Architecture overview](docs/architecture/overview.md)
 - [Career IR](docs/architecture/career-ir.md)
 - [Target Job](docs/architecture/target-job.md)
+- [Resume Compilation](docs/architecture/resume-compilation.md)
 - [Source contract](docs/architecture/source-contract.md)
 - [GitHub Identity Attribution](docs/architecture/github-attribution.md)
 - [Renderer contract](docs/architecture/renderer-contract.md)

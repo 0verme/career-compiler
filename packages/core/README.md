@@ -8,4 +8,6 @@ Career Compiler 的 framework-independent domain model：`CareerIdentity`、`Car
 
 `TargetJob` 是另一条正交输入线：稳定 `id`、可选 `company`、`title`、逐字保存的 `rawJd` 与仅用于变化检测的 `rawJdHash`。`createTargetJob` / `updateTargetJob` 不生造事实，`validateTargetJob` 强制 hash 与 raw JD 一致；Target Job 不进入 `CareerIR`。
 
+Resume Compilation 层把 Career IR 的 presentation projection 编译为可审阅的 `ResumePatchProposal`，再 apply 为 `ResumeVariant`：proposal 内容寻址、只包含 select / hide / reorder / section visibility / skill emphasis 等结构操作，`baseIrHash` 使用 canonical serialization + SHA-256；apply 前校验 IR 未变化，reject 不动 variant，revert 通过最小 `CompilationSnapshot` 回退。该层不修改 fact / evidence / achievement。
+
 该 package 不依赖 SQLite、HTTP client 或任何 AI provider。
