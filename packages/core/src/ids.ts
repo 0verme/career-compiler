@@ -41,6 +41,20 @@ export function hashRawJd(rawJd: string): string {
   return stableHash(rawJd);
 }
 
+/**
+ * Deterministic requirement identity: the same target job revision and quote
+ * range always produce the same id, so re-parsing the unchanged raw JD is
+ * reproducible and review references stay stable.
+ */
+export function createJdRequirementId(
+  targetJobId: string,
+  sourceRawJdHash: string,
+  quoteStart: number,
+  quoteEnd: number
+): string {
+  return createStableId('jdreq', `${targetJobId}:${sourceRawJdHash}:${quoteStart}:${quoteEnd}`);
+}
+
 export function createEvidenceId(
   sourceType: SourceType,
   sourceId: string,

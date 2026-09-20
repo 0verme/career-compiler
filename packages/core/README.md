@@ -8,4 +8,6 @@ Career Compiler 的 framework-independent domain model：`CareerIdentity`、`Car
 
 `TargetJob` 是另一条正交输入线：稳定 `id`、可选 `company`、`title`、逐字保存的 `rawJd` 与仅用于变化检测的 `rawJdHash`。`createTargetJob` / `updateTargetJob` 不生造事实，`validateTargetJob` 强制 hash 与 raw JD 一致；Target Job 不进入 `CareerIR`。
 
+`JdRequirement` / `JdRequirementSet` 把 raw JD 理解为可审阅的岗位要求：`rawQuote` 是逐字且可定位的 JD 片段，`id` 由 target job 版本与 quote range 确定性派生，解析结果默认 `parsed`，只有 `confirmedJdRequirements()` 的输出才允许被后续 Evidence Matcher 消费。解析器通过 `JdRequirementParser` contract 可替换，不依赖任何 LLM provider，也不触碰事实链。
+
 该 package 不依赖 SQLite、HTTP client 或任何 AI provider。
