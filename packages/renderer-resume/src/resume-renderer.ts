@@ -4,16 +4,27 @@ import type {
   CareerProfile,
   CareerRenderer,
   RenderedArtifact,
-  RendererOptions
+  RendererOptions,
+  ResumeSectionId,
+  ResumeViewConfig
 } from '@career-compiler/core';
 import {
   CAREER_IR_SCHEMA_VERSION,
+  applyResumeViewConfig,
   validateCareerIR,
-  validateCareerProfile
+  validateCareerProfile,
+  visibleResumeSections
 } from '@career-compiler/core';
 
 export interface ResumeRendererOptions extends RendererOptions {
   fileName?: string;
+  /**
+   * Structural view from a ResumeVariant (selection / order / visibility /
+   * emphasis). When present, section layout comes from the view and `template`
+   * cannot be combined with it; the full presentation contract belongs to the
+   * resume presentation roadmap item.
+   */
+  view?: ResumeViewConfig;
 }
 
 const DEFAULT_RESUME_TEMPLATE = `# {{name}}
@@ -121,6 +132,26 @@ function renderAchievements(profile: CareerProfile): string {
     .join('\n');
 }
 
+/**
+ * Render the fixed Markdown layout with the variant's section order and
+ * visibility. Item selection / ordering already happened in the core view
+ * projection, so this only assembles section blocks.
+ */
+function renderView(profile: CareerProfile, view: ResumeViewConfig): string {
+  const sections: Record<ResumeSectionId, string> = {
+    summary: `## Summary\n\n${line(profile.about)}`,
+    experience: `## Experience\n\n${renderExperience(profile)}`,
+    projects: `## Projects\n\n${renderProjects(profile)}`,
+    skills: `## Skills\n\n${renderSkills(profile)}`,
+    achievements: `## Achievements\n\n${renderAchievements(profile)}`
+  };
+  return [
+    `# ${profile.displayName}`,
+    line(profile.headline),
+    ...visibleResumeSections(view).map((section) => sections[section])
+  ].join('\n\n');
+}
+
 export class ResumeMarkdownRenderer
   implements CareerRenderer<ResumeRendererOptions>
 {
@@ -129,16 +160,26 @@ export class ResumeMarkdownRenderer
 
   render(input: CareerIR | CareerProfile, options: ResumeRendererOptions = {}): RenderedArtifact {
     const ir = asIR(input);
-    const profile = ir.profile;
-    const content = applyTemplate(options.template ?? DEFAULT_RESUME_TEMPLATE, {
-      name: profile.displayName,
-      headline: line(profile.headline),
-      summary: line(profile.about),
-      experience: renderExperience(profile),
-      projects: renderProjects(profile),
-      skills: renderSkills(profile),
-      achievements: renderAchievements(profile)
-    }).trimEnd() + '\n';
+    if (options.view !== undefined && options.template !== undefined) {
+      throw new Error(
+        'ResumeRendererOptions.view and template cannot be combined; a variant view defines its own section layout'
+      );
+    }
+    const profile =
+      options.view !== undefined ? applyResumeViewConfig(ir, options.view).profile : ir.profile;
+    const content =
+      (options.view !== undefined
+        ? renderView(profile, options.view)
+        : applyTemplate(options.template ?? DEFAULT_RESUME_TEMPLATE, {
+            name: profile.displayName,
+            headline: line(profile.headline),
+            summary: line(profile.about),
+            experience: renderExperience(profile),
+            projects: renderProjects(profile),
+            skills: renderSkills(profile),
+            achievements: renderAchievements(profile)
+          })
+      ).trimEnd() + '\n';
     return {
       rendererId: this.rendererId,
       format: this.format,

@@ -9,17 +9,27 @@ import type {
   CareerIdentity,
   CareerIR,
   CareerRepository,
+  ResumeCompilationDirectives,
+  ResumeCompilationRepository,
+  ResumePatchProposal,
+  ResumeSectionId,
   SourceRunContext,
   TargetJob,
   TargetJobPatch,
   TargetJobRepository
 } from '@career-compiler/core';
 import {
+  DEFAULT_RESUME_SECTION_ORDER,
+  StructuralCompilationStrategy,
+  applyResumePatchProposal,
   buildCareerIR,
+  canonicalIrHash,
   createTargetJob,
   deriveCandidateFacts,
   mergeCandidateFacts,
   parseCareerIR,
+  rejectResumePatchProposal,
+  revertCompilationSnapshot,
   serializeCareerIR
 } from '@career-compiler/core';
 import { GitHubProfileMarkdownRenderer } from '@career-compiler/renderer-github-profile';
@@ -56,7 +66,7 @@ interface Runtime {
   dataDir: string;
   profileId: string;
   identity?: CareerIdentity;
-  repository: CareerRepository & TargetJobRepository;
+  repository: CareerRepository & TargetJobRepository & ResumeCompilationRepository;
 }
 
 const FACT_STATUSES: CareerFactStatus[] = [
@@ -592,6 +602,319 @@ target
     });
   });
 
+interface ProposeOptions {
+  target?: string;
+  selectAchievement?: string | string[];
+  hideAchievement?: string | string[];
+  achievementOrder?: string | string[];
+  sectionOrder?: string;
+  hideSection?: string | string[];
+  emphasizeSkill?: string | string[];
+}
+
+function arrayOption(value: string | string[] | undefined): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
+function parseSectionOrder(value: string | undefined): ResumeSectionId[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const sections = value
+    .split(',')
+    .map((section) => section.trim())
+    .filter((section) => section.length > 0);
+  for (const section of sections) {
+    if (!(DEFAULT_RESUME_SECTION_ORDER as readonly string[]).includes(section)) {
+      throw new Error(
+        `Unknown resume section: ${section}. Use ${DEFAULT_RESUME_SECTION_ORDER.join(', ')}`
+      );
+    }
+  }
+  return sections as ResumeSectionId[];
+}
+
+function proposalSummary(proposal: {
+  id: string;
+  status: string;
+  targetJobId?: string;
+  strategyId: string;
+  createdAt: string;
+}): Record<string, string | null> {
+  return {
+    id: proposal.id,
+    status: proposal.status,
+    targetJobId: proposal.targetJobId ?? null,
+    strategyId: proposal.strategyId,
+    createdAt: proposal.createdAt
+  };
+}
+
+function printProposalDetail(command: Command, proposal: ResumePatchProposal): void {
+  if (rootOptions(command).json) {
+    printValue(command, proposal);
+    return;
+  }
+  const lines = [
+    `id:         ${proposal.id}`,
+    `status:     ${proposal.status}`,
+    `target:     ${proposal.targetJobId ?? '-'}`,
+    `strategy:   ${proposal.strategyId}`,
+    `baseIrHash: ${proposal.baseIrHash}`,
+    `createdAt:  ${proposal.createdAt}`
+  ];
+  lines.push('operations:');
+  for (const operation of proposal.operations) {
+    let target = '';
+    switch (operation.op) {
+      case 'select-achievement':
+      case 'hide-achievement':
+        target = operation.achievementId;
+        break;
+      case 'emphasize-skill':
+        target = operation.skillId;
+        break;
+      case 'set-section-visibility':
+        target = operation.section;
+        break;
+      case 'set-section-order':
+        target = operation.sections.join(',');
+        break;
+      case 'reorder-achievements':
+        target = operation.achievementIds.join(',');
+        break;
+    }
+    lines.push(`  - ${operation.op}${target ? ` ${target}` : ''} (${operation.reason})`);
+  }
+  process.stdout.write(`${lines.join('\n')}\n`);
+}
+
+function printProposalList(proposals: ResumePatchProposal[]): void {
+  if (proposals.length === 0) {
+    process.stdout.write('(no proposals)\n');
+    return;
+  }
+  const header = ['ID', 'STATUS', 'TARGET', 'STRATEGY', 'CREATED'];
+  const rows = proposals.map((proposal) => [
+    proposal.id,
+    proposal.status,
+    proposal.targetJobId ?? '-',
+    proposal.strategyId,
+    proposal.createdAt
+  ]);
+  const widths = header.map((label, index) =>
+    Math.max(label.length, ...rows.map((row) => (row[index] ?? '').length))
+  );
+  const format = (row: string[]): string =>
+    row.map((cell, index) => cell.padEnd(widths[index] ?? 0)).join('  ').trimEnd();
+  process.stdout.write([format(header), ...rows.map(format)].join('\n') + '\n');
+}
+
+const compile = program
+  .command('compile')
+  .description('Resume 编译层：结构 proposal → apply / reject / revert → variant（不修改 Career Truth）');
+
+compile
+  .command('propose')
+  .description('基于显式结构 directives 生成 deterministic ResumePatchProposal')
+  .option('--target <targetJobId>', '绑定 Target Job（可选）')
+  .option('--select-achievement <id...>', '选中 achievement 进入 Variant')
+  .option('--hide-achievement <id...>', '从 Variant 排除 achievement')
+  .option('--achievement-order <id...>', '显式 achievement 顺序；未列出的保持编译顺序')
+  .option(
+    '--section-order <sections>',
+    `逗号分隔的完整 section 顺序：${DEFAULT_RESUME_SECTION_ORDER.join(',')}`
+  )
+  .option('--hide-section <section...>', '隐藏 section')
+  .option('--emphasize-skill <id...>', '强调 skill（移到技能列表前面，不新增技能）')
+  .action(async (options: ProposeOptions, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const targetJobId = options.target;
+      if (targetJobId !== undefined && !runtime.repository.getTargetJob(targetJobId)) {
+        throw new Error(`TargetJob not found: ${targetJobId}`);
+      }
+      const selectAchievementIds = arrayOption(options.selectAchievement);
+      const hideAchievementIds = arrayOption(options.hideAchievement);
+      const achievementOrder = arrayOption(options.achievementOrder);
+      const hiddenSections = arrayOption(options.hideSection);
+      const emphasizedSkillIds = arrayOption(options.emphasizeSkill);
+      const sectionOrder = parseSectionOrder(options.sectionOrder);
+      const directives: ResumeCompilationDirectives = {
+        ...(selectAchievementIds ? { selectAchievementIds } : {}),
+        ...(hideAchievementIds ? { hideAchievementIds } : {}),
+        ...(achievementOrder ? { achievementOrder } : {}),
+        ...(sectionOrder ? { sectionOrder } : {}),
+        ...(hiddenSections ? { hiddenSections: hiddenSections as ResumeSectionId[] } : {}),
+        ...(emphasizedSkillIds ? { emphasizedSkillIds } : {})
+      };
+      const ir = runtime.repository.loadCareerIR(runtime.profileId) ?? rebuildCareerIR(runtime);
+      const proposal = new StructuralCompilationStrategy().propose(ir, {
+        ...(targetJobId !== undefined ? { targetJobId } : {}),
+        directives
+      });
+      runtime.repository.saveResumePatchProposal(proposal);
+      printProposalDetail(command, proposal);
+    });
+  });
+
+compile
+  .command('proposals')
+  .description('列出 ResumePatchProposal 概要')
+  .action(async (_options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const proposals = runtime.repository.listResumePatchProposals();
+      if (rootOptions(command).json) {
+        printValue(command, proposals.map(proposalSummary));
+        return;
+      }
+      printProposalList(proposals);
+    });
+  });
+
+compile
+  .command('show <proposalId>')
+  .description('显示 proposal 详情与全部 operations')
+  .action(async (proposalId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const proposal = runtime.repository.getResumePatchProposal(proposalId);
+      if (!proposal) {
+        throw new Error(`ResumePatchProposal not found: ${proposalId}`);
+      }
+      printProposalDetail(command, proposal);
+    });
+  });
+
+compile
+  .command('apply <proposalId>')
+  .description('apply 一个 draft proposal；产出/更新 ResumeVariant 并记录 snapshot')
+  .action(async (proposalId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const proposal = runtime.repository.getResumePatchProposal(proposalId);
+      if (!proposal) {
+        throw new Error(`ResumePatchProposal not found: ${proposalId}`);
+      }
+      const ir = runtime.repository.loadCareerIR(runtime.profileId) ?? rebuildCareerIR(runtime);
+      const result = applyResumePatchProposal(proposal, ir, runtime.repository);
+      if (rootOptions(command).json) {
+        printValue(command, result);
+        return;
+      }
+      process.stdout.write(
+        [
+          `proposal:   ${result.proposal.id} (applied)`,
+          `variant:    ${result.variant.id} (revision ${result.variant.revision})`,
+          `target:     ${result.variant.targetJobId ?? '-'}`,
+          `snapshot:   ${result.snapshot.id}`,
+          `baseIrHash: ${result.variant.baseIrHash}`
+        ].join('\n') + '\n'
+      );
+    });
+  });
+
+compile
+  .command('reject <proposalId>')
+  .description('reject 一个 draft proposal；不产生任何 Variant 改动')
+  .action(async (proposalId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const proposal = runtime.repository.getResumePatchProposal(proposalId);
+      if (!proposal) {
+        throw new Error(`ResumePatchProposal not found: ${proposalId}`);
+      }
+      const rejected = rejectResumePatchProposal(proposal, runtime.repository);
+      if (rootOptions(command).json) {
+        printValue(command, rejected);
+        return;
+      }
+      process.stdout.write(`proposal: ${rejected.id} (rejected)\n`);
+    });
+  });
+
+compile
+  .command('revert <snapshotId>')
+  .description('回退一次 apply；恢复 apply 前的 Variant 状态并将 proposal 退回 draft')
+  .action(async (snapshotId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const snapshot = runtime.repository.getCompilationSnapshot(snapshotId);
+      if (!snapshot) {
+        throw new Error(`CompilationSnapshot not found: ${snapshotId}`);
+      }
+      const result = revertCompilationSnapshot(snapshot, runtime.repository);
+      if (rootOptions(command).json) {
+        printValue(command, result);
+        return;
+      }
+      process.stdout.write(
+        [
+          `proposal: ${result.proposal.id} (draft)`,
+          `variant:  ${result.variant ? `${result.variant.id} (revision ${result.variant.revision})` : '(deleted)'}`,
+          `snapshot: ${snapshotId} (consumed)`
+        ].join('\n') + '\n'
+      );
+    });
+  });
+
+compile
+  .command('variants')
+  .description('列出 ResumeVariant')
+  .action(async (_options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const variants = runtime.repository.listResumeVariants();
+      if (rootOptions(command).json) {
+        printValue(command, variants);
+        return;
+      }
+      if (variants.length === 0) {
+        process.stdout.write('(no variants)\n');
+        return;
+      }
+      const header = ['ID', 'TARGET', 'REVISION', 'PROPOSAL', 'UPDATED'];
+      const rows = variants.map((variant) => [
+        variant.id,
+        variant.targetJobId ?? '-',
+        String(variant.revision),
+        variant.proposalId,
+        variant.updatedAt
+      ]);
+      const widths = header.map((label, index) =>
+        Math.max(label.length, ...rows.map((row) => (row[index] ?? '').length))
+      );
+      const format = (row: string[]): string =>
+        row.map((cell, index) => cell.padEnd(widths[index] ?? 0)).join('  ').trimEnd();
+      process.stdout.write([format(header), ...rows.map(format)].join('\n') + '\n');
+    });
+  });
+
+compile
+  .command('variant <variantId>')
+  .description('显示 ResumeVariant 详情（结构 view + 来源 revision）')
+  .action(async (variantId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const variant = runtime.repository.getResumeVariant(variantId);
+      if (!variant) {
+        throw new Error(`ResumeVariant not found: ${variantId}`);
+      }
+      if (rootOptions(command).json) {
+        printValue(command, variant);
+        return;
+      }
+      process.stdout.write(
+        [
+          `id:         ${variant.id}`,
+          `target:     ${variant.targetJobId ?? '-'}`,
+          `revision:   ${variant.revision}`,
+          `proposal:   ${variant.proposalId}`,
+          `baseIrHash: ${variant.baseIrHash}`,
+          `createdAt:  ${variant.createdAt}`,
+          `updatedAt:  ${variant.updatedAt}`,
+          `view:       ${JSON.stringify(variant.view)}`
+        ].join('\n') + '\n'
+      );
+    });
+  });
+
 const facts = program.command('facts').description('查看和确认 CareerFacts');
 facts
   .command('list [status]')
@@ -627,15 +950,37 @@ facts
 const render = program.command('render').description('从 Career IR 生成职业输出物');
 render
   .command('resume')
-  .description('生成 Markdown resume')
+  .description('生成 Markdown resume；可用 --variant 渲染某个 ResumeVariant 的结构 view')
   .option('-o, --output <path>', '输出文件路径，使用 - 输出到 stdout')
-  .option('--template <path>', '自定义 Markdown template 文件')
+  .option('--template <path>', '自定义 Markdown template 文件（不能与 --variant 同时使用）')
+  .option('--variant <variantId>', '使用 ResumeVariant 的 view 渲染')
   .option('--profile <id>', 'profile id')
   .action(async (options: Record<string, string>, command: Command) => {
     await withRuntime(command, async (runtime) => {
+      if (options.variant !== undefined && options.template !== undefined) {
+        throw new Error('--variant 与 --template 不能同时使用；variant view 自带 section 顺序');
+      }
+      const variant =
+        options.variant !== undefined
+          ? runtime.repository.getResumeVariant(options.variant)
+          : undefined;
+      if (options.variant !== undefined && !variant) {
+        throw new Error(`ResumeVariant not found: ${options.variant}`);
+      }
       const ir = runtime.repository.loadCareerIR(runtime.profileId) ?? rebuildCareerIR(runtime);
+      if (variant) {
+        const currentIrHash = canonicalIrHash(ir);
+        if (currentIrHash !== variant.baseIrHash) {
+          throw new Error(
+            `ResumeVariant ${variant.id} is stale: compiled from ${variant.baseIrHash} but current CareerIR is ${currentIrHash}; recompile before rendering`
+          );
+        }
+      }
       const artifact = new ResumeMarkdownRenderer().render(ir, {
-        ...(await readTemplate(options.template) ? { template: await readTemplate(options.template) } : {}),
+        ...(variant ? { view: variant.view } : {}),
+        ...(await readTemplate(options.template)
+          ? { template: await readTemplate(options.template) }
+          : {}),
         ...(options.output && options.output !== '-' ? { fileName: options.output } : {})
       });
       await writeArtifact(command, artifact, options.output);
