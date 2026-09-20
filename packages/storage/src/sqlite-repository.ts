@@ -9,6 +9,8 @@ import type {
   CareerIR,
   CareerRepository,
   CompilationSnapshot,
+  JdRequirement,
+  JdRequirementRepository,
   JsonObject,
   ResumeCompilationRepository,
   ResumePatchProposal,
@@ -27,6 +29,7 @@ import {
   validateCareerFact,
   validateCareerIR,
   validateCompilationSnapshot,
+  validateJdRequirement,
   validateResumePatchProposal,
   validateResumeVariant,
   validateTargetJob
@@ -148,6 +151,23 @@ function parseTargetJob(row: SQLiteRow): TargetJob {
   });
 }
 
+function parseJdRequirement(row: SQLiteRow): JdRequirement {
+  return validateJdRequirement({
+    id: rowString(row, 'id'),
+    targetJobId: rowString(row, 'target_job_id'),
+    category: rowString(row, 'category'),
+    priority: rowString(row, 'priority'),
+    statement: rowString(row, 'statement'),
+    rawQuote: rowString(row, 'raw_quote'),
+    quoteRange: { start: Number(row.quote_start), end: Number(row.quote_end) },
+    confidence: Number(row.confidence),
+    status: rowString(row, 'status'),
+    sourceRawJdHash: rowString(row, 'source_raw_jd_hash'),
+    createdAt: rowString(row, 'created_at'),
+    updatedAt: rowString(row, 'updated_at')
+  });
+}
+
 function parseJsonValue(serialized: string, field: string): unknown {
   try {
     return JSON.parse(serialized) as unknown;
@@ -206,7 +226,7 @@ function parseCompilationSnapshot(row: SQLiteRow): CompilationSnapshot {
 }
 
 export class SQLiteCareerRepository
-  implements CareerRepository, TargetJobRepository, ResumeCompilationRepository {
+  implements CareerRepository, TargetJobRepository, JdRequirementRepository, ResumeCompilationRepository {
   private readonly database: DatabaseSync;
 
   constructor(options: SQLiteCareerRepositoryOptions) {
@@ -280,6 +300,24 @@ export class SQLiteCareerRepository
         updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_target_jobs_updated_at ON target_jobs(updated_at);
+
+      CREATE TABLE IF NOT EXISTS jd_requirements (
+        id TEXT PRIMARY KEY,
+        target_job_id TEXT NOT NULL REFERENCES target_jobs(id) ON DELETE CASCADE,
+        category TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        statement TEXT NOT NULL,
+        raw_quote TEXT NOT NULL,
+        quote_start INTEGER NOT NULL,
+        quote_end INTEGER NOT NULL,
+        confidence REAL NOT NULL,
+        status TEXT NOT NULL,
+        source_raw_jd_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_jd_requirements_target_job
+        ON jd_requirements(target_job_id);
 
       CREATE TABLE IF NOT EXISTS resume_patch_proposals (
         id TEXT PRIMARY KEY,
@@ -643,6 +681,84 @@ export class SQLiteCareerRepository
         validated.createdAt,
         validated.updatedAt
       );
+  }
+
+  private writeJdRequirement(requirement: JdRequirement): void {
+    const validated = validateJdRequirement(requirement);
+    this.database
+      .prepare(`
+        INSERT INTO jd_requirements
+          (id, target_job_id, category, priority, statement, raw_quote,
+           quote_start, quote_end, confidence, status, source_raw_jd_hash,
+           created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          category = excluded.category,
+          priority = excluded.priority,
+          statement = excluded.statement,
+          confidence = excluded.confidence,
+          status = excluded.status,
+          updated_at = excluded.updated_at
+      `)
+      .run(
+        validated.id,
+        validated.targetJobId,
+        validated.category,
+        validated.priority,
+        validated.statement,
+        validated.rawQuote,
+        validated.quoteRange.start,
+        validated.quoteRange.end,
+        validated.confidence,
+        validated.status,
+        validated.sourceRawJdHash,
+        validated.createdAt,
+        validated.updatedAt
+      );
+  }
+
+  /**
+   * Replace the whole requirement set of a target job atomically. Re-parsing
+   * the same or a changed raw JD never mixes old and new requirements.
+   */
+  replaceJdRequirements(targetJobId: string, requirements: JdRequirement[]): void {
+    const validated = requirements.map((requirement) => {
+      const item = validateJdRequirement(requirement);
+      if (item.targetJobId !== targetJobId) {
+        throw new Error(
+          `JdRequirement ${item.id} belongs to target job ${item.targetJobId}, not ${targetJobId}`
+        );
+      }
+      return item;
+    });
+    this.transaction(() => {
+      this.database.prepare('DELETE FROM jd_requirements WHERE target_job_id = ?').run(targetJobId);
+      for (const requirement of validated) {
+        this.writeJdRequirement(requirement);
+      }
+    });
+  }
+
+  /** Document order: by quote position, then id for determinism. */
+  listJdRequirements(targetJobId: string): JdRequirement[] {
+    // SAFETY: node:sqlite returns each SELECT row as a string-keyed record.
+    const rows = this.database
+      .prepare(
+        'SELECT * FROM jd_requirements WHERE target_job_id = ? ORDER BY quote_start, id'
+      )
+      .all(targetJobId) as unknown as SQLiteRow[];
+    return rows.map(parseJdRequirement);
+  }
+
+  getJdRequirement(id: string): JdRequirement | undefined {
+    const row = this.database.prepare('SELECT * FROM jd_requirements WHERE id = ?').get(id) as
+      | SQLiteRow
+      | undefined;
+    return row ? parseJdRequirement(row) : undefined;
+  }
+
+  saveJdRequirement(requirement: JdRequirement): void {
+    this.transaction(() => this.writeJdRequirement(requirement));
   }
 
   private writeResumePatchProposal(proposal: ResumePatchProposal): void {

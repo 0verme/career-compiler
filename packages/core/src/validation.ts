@@ -12,6 +12,12 @@ import type {
   CareerIdentity,
   CareerIR,
   CareerProfile,
+  JdRequirement,
+  JdRequirementCategory,
+  JdRequirementEditPatch,
+  JdRequirementPriority,
+  JdRequirementSet,
+  JdRequirementStatus,
   JsonObject,
   JsonValue,
   ResumePatchOperation,
@@ -27,7 +33,12 @@ import type {
 } from './types.js';
 import { CAREER_IR_SCHEMA_VERSION, DEFAULT_RESUME_SECTION_ORDER } from './types.js';
 import { createResumePatchProposalId } from './canonical.js';
-import { experienceIdFromFact, hashRawJd, projectIdFromFact } from './ids.js';
+import {
+  createJdRequirementId,
+  experienceIdFromFact,
+  hashRawJd,
+  projectIdFromFact
+} from './ids.js';
 
 export class DomainValidationError extends Error {
   constructor(message: string) {
@@ -564,6 +575,171 @@ export function validateTargetJobPatch(value: unknown): TargetJobPatch {
     throw new DomainValidationError(
       'TargetJob patch must change at least one of title, company or rawJd'
     );
+  }
+  return patch;
+}
+
+const JD_REQUIREMENT_CATEGORIES: JdRequirementCategory[] = [
+  'responsibility',
+  'skill',
+  'experience',
+  'education',
+  'management',
+  'domain',
+  'other'
+];
+
+const JD_REQUIREMENT_PRIORITIES: JdRequirementPriority[] = [
+  'required',
+  'preferred',
+  'unspecified'
+];
+
+const JD_REQUIREMENT_STATUSES: JdRequirementStatus[] = [
+  'parsed',
+  'confirmed',
+  'rejected'
+];
+
+export function isJdRequirementCategory(value: unknown): value is JdRequirementCategory {
+  return typeof value === 'string' && (JD_REQUIREMENT_CATEGORIES as string[]).includes(value);
+}
+
+export function isJdRequirementPriority(value: unknown): value is JdRequirementPriority {
+  return typeof value === 'string' && (JD_REQUIREMENT_PRIORITIES as string[]).includes(value);
+}
+
+export function isJdRequirementStatus(value: unknown): value is JdRequirementStatus {
+  return typeof value === 'string' && (JD_REQUIREMENT_STATUSES as string[]).includes(value);
+}
+
+function assertQuoteRange(value: unknown, field: string): asserts value is { start: number; end: number } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError(`${field} must be an object`);
+  }
+  const range = value as { start?: unknown; end?: unknown };
+  if (!Number.isInteger(range.start) || (range.start as number) < 0) {
+    throw new DomainValidationError(`${field}.start must be a non-negative integer`);
+  }
+  if (!Number.isInteger(range.end) || (range.end as number) <= (range.start as number)) {
+    throw new DomainValidationError(`${field}.end must be an integer greater than start`);
+  }
+}
+
+/**
+ * Structural validation of one JD requirement, including deterministic id
+ * consistency. Traceability against the current raw JD is checked separately
+ * with `assertJdRequirementQuote` so stored requirements stay readable after
+ * the JD moves on.
+ */
+export function validateJdRequirement(value: unknown): JdRequirement {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('JdRequirement must be an object');
+  }
+  const requirement = value as Partial<JdRequirement>;
+  assertNonEmptyString(requirement.id, 'requirement.id');
+  assertNonEmptyString(requirement.targetJobId, 'requirement.targetJobId');
+  if (!isJdRequirementCategory(requirement.category)) {
+    throw new DomainValidationError(
+      `Unsupported requirement category: ${String(requirement.category)}`
+    );
+  }
+  if (!isJdRequirementPriority(requirement.priority)) {
+    throw new DomainValidationError(
+      `Unsupported requirement priority: ${String(requirement.priority)}`
+    );
+  }
+  if (!isJdRequirementStatus(requirement.status)) {
+    throw new DomainValidationError(
+      `Unsupported requirement status: ${String(requirement.status)}`
+    );
+  }
+  assertNonEmptyString(requirement.statement, 'requirement.statement');
+  assertNonEmptyString(requirement.rawQuote, 'requirement.rawQuote');
+  assertQuoteRange(requirement.quoteRange, 'requirement.quoteRange');
+  assertConfidence(requirement.confidence, 'requirement.confidence');
+  assertNonEmptyString(requirement.sourceRawJdHash, 'requirement.sourceRawJdHash');
+  assertIsoDate(requirement.createdAt, 'requirement.createdAt');
+  assertIsoDate(requirement.updatedAt, 'requirement.updatedAt');
+  const expectedId = createJdRequirementId(
+    requirement.targetJobId,
+    requirement.sourceRawJdHash,
+    requirement.quoteRange.start,
+    requirement.quoteRange.end
+  );
+  if (requirement.id !== expectedId) {
+    throw new DomainValidationError(
+      `requirement.id must be derived from targetJobId, sourceRawJdHash and quoteRange; expected ${expectedId}, got ${requirement.id}`
+    );
+  }
+  return requirement as JdRequirement;
+}
+
+/**
+ * A requirement may only be saved when its `rawQuote` is locatable in the raw
+ * JD it was parsed from. This rejects tampered or truncated quotes instead of
+ * silently keeping an unverifiable requirement.
+ */
+export function assertJdRequirementQuote(requirement: JdRequirement, rawJd: string): void {
+  const { start, end } = requirement.quoteRange;
+  if (end > rawJd.length || rawJd.slice(start, end) !== requirement.rawQuote) {
+    throw new DomainValidationError(
+      `requirement ${requirement.id} rawQuote is not locatable at ${start}..${end} in the source raw JD`
+    );
+  }
+}
+
+/** Validates a parsed requirement set produced from one raw JD revision. */
+export function validateJdRequirementSet(value: unknown): JdRequirementSet {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('JdRequirementSet must be an object');
+  }
+  const set = value as Partial<JdRequirementSet>;
+  assertNonEmptyString(set.targetJobId, 'requirementSet.targetJobId');
+  assertNonEmptyString(set.rawJdHash, 'requirementSet.rawJdHash');
+  if (!Array.isArray(set.requirements)) {
+    throw new DomainValidationError('requirementSet.requirements must be an array');
+  }
+  const ids = new Set<string>();
+  for (const item of set.requirements) {
+    const requirement = validateJdRequirement(item);
+    if (requirement.targetJobId !== set.targetJobId) {
+      throw new DomainValidationError(
+        `requirement ${requirement.id} belongs to another target job`
+      );
+    }
+    if (requirement.sourceRawJdHash !== set.rawJdHash) {
+      throw new DomainValidationError(
+        `requirement ${requirement.id} was parsed from another raw JD revision`
+      );
+    }
+    if (ids.has(requirement.id)) {
+      throw new DomainValidationError(`duplicate requirement id: ${requirement.id}`);
+    }
+    ids.add(requirement.id);
+  }
+  return set as JdRequirementSet;
+}
+
+/** Validates a user correction of a requirement; quotes cannot be edited. */
+export function validateJdRequirementEditPatch(value: unknown): JdRequirementEditPatch {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new DomainValidationError('JdRequirement edit patch must be an object');
+  }
+  const patch = value as JdRequirementEditPatch;
+  if (patch.category === undefined && patch.priority === undefined && patch.statement === undefined) {
+    throw new DomainValidationError(
+      'JdRequirement edit patch must change at least one of category, priority or statement'
+    );
+  }
+  if (patch.category !== undefined && !isJdRequirementCategory(patch.category)) {
+    throw new DomainValidationError(`Unsupported requirement category: ${String(patch.category)}`);
+  }
+  if (patch.priority !== undefined && !isJdRequirementPriority(patch.priority)) {
+    throw new DomainValidationError(`Unsupported requirement priority: ${String(patch.priority)}`);
+  }
+  if (patch.statement !== undefined) {
+    assertNonEmptyString(patch.statement, 'requirement.statement');
   }
   return patch;
 }

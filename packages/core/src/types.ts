@@ -260,6 +260,99 @@ export interface TargetJobRepository {
 }
 
 /**
+ * JD requirement layer.
+ *
+ * A requirement is a structured, traceable understanding of the raw JD text.
+ * It is target context, not Career Truth: requirements never create, confirm or
+ * rewrite CareerEvidence / CareerFact / CareerAchievement / CareerProfile, and
+ * they never enter the Career IR. Parsing produces `parsed` candidates that
+ * only become matchable input after explicit user confirmation.
+ */
+export type JdRequirementCategory =
+  | 'responsibility'
+  | 'skill'
+  | 'experience'
+  | 'education'
+  | 'management'
+  | 'domain'
+  | 'other';
+
+export type JdRequirementPriority = 'required' | 'preferred' | 'unspecified';
+
+export type JdRequirementStatus = 'parsed' | 'confirmed' | 'rejected';
+
+/** Character range of `rawQuote` inside `rawJd` (UTF-16 offsets, end exclusive). */
+export interface JdRequirementQuoteRange {
+  start: number;
+  end: number;
+}
+
+export interface JdRequirement {
+  /** Deterministic for the same target job revision + quote range. */
+  id: string;
+  targetJobId: string;
+  category: JdRequirementCategory;
+  priority: JdRequirementPriority;
+  /** Normalized requirement description; `rawQuote` is always kept verbatim. */
+  statement: string;
+  /** Verbatim fragment of the raw JD; must be locatable at `quoteRange`. */
+  rawQuote: string;
+  quoteRange: JdRequirementQuoteRange;
+  /** Deterministic parser confidence, for review ordering only. */
+  confidence: number;
+  status: JdRequirementStatus;
+  /** Hash of the raw JD this requirement was parsed from. */
+  sourceRawJdHash: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Requirements parsed from one raw JD revision of one target job. */
+export interface JdRequirementSet {
+  targetJobId: string;
+  rawJdHash: string;
+  requirements: JdRequirement[];
+}
+
+/** Parser output before identity / lifecycle is assigned. */
+export interface JdRequirementCandidate {
+  category: JdRequirementCategory;
+  priority: JdRequirementPriority;
+  statement: string;
+  rawQuote: string;
+  quoteRange: JdRequirementQuoteRange;
+  confidence: number;
+}
+
+/**
+ * Deterministic and provider-replaceable parser contract. Implementations must
+ * only read the complete raw JD and must not modify the fact pipeline.
+ */
+export interface JdRequirementParser {
+  readonly id: string;
+  readonly version: string;
+  parse(rawJd: string): JdRequirementCandidate[];
+}
+
+/** User correction of a parsed requirement; `rawQuote` is never editable. */
+export interface JdRequirementEditPatch {
+  category?: JdRequirementCategory;
+  priority?: JdRequirementPriority;
+  statement?: string;
+}
+
+/**
+ * Persistence contract for JD requirements, separate from TargetJobRepository.
+ * `replaceJdRequirements` is atomic so a failed parse leaves no half set.
+ */
+export interface JdRequirementRepository {
+  replaceJdRequirements(targetJobId: string, requirements: JdRequirement[]): void;
+  listJdRequirements(targetJobId: string): JdRequirement[];
+  getJdRequirement(id: string): JdRequirement | undefined;
+  saveJdRequirement(requirement: JdRequirement): void;
+}
+
+/**
  * Resume compilation layer.
  *
  * A proposal is a reviewable, content-addressed description of structural

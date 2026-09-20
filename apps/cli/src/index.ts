@@ -9,6 +9,10 @@ import type {
   CareerIdentity,
   CareerIR,
   CareerRepository,
+  JdRequirement,
+  JdRequirementEditPatch,
+  JdRequirementRepository,
+  JdRequirementSet,
   ResumeCompilationDirectives,
   ResumeCompilationRepository,
   ResumePatchProposal,
@@ -20,14 +24,21 @@ import type {
 } from '@career-compiler/core';
 import {
   DEFAULT_RESUME_SECTION_ORDER,
+  DeterministicJdRequirementParser,
   StructuralCompilationStrategy,
   applyResumePatchProposal,
   buildCareerIR,
   canonicalIrHash,
+  confirmJdRequirement,
   createTargetJob,
   deriveCandidateFacts,
+  editJdRequirement,
+  getJdRequirementSet,
+  isJdRequirementSetStale,
   mergeCandidateFacts,
   parseCareerIR,
+  parseJdRequirementsForTarget,
+  rejectJdRequirement,
   rejectResumePatchProposal,
   revertCompilationSnapshot,
   serializeCareerIR
@@ -66,7 +77,7 @@ interface Runtime {
   dataDir: string;
   profileId: string;
   identity?: CareerIdentity;
-  repository: CareerRepository & TargetJobRepository & ResumeCompilationRepository;
+  repository: CareerRepository & TargetJobRepository & JdRequirementRepository & ResumeCompilationRepository;
 }
 
 const FACT_STATUSES: CareerFactStatus[] = [
@@ -265,6 +276,59 @@ function printTargetJobList(jobs: TargetJob[]): void {
   const format = (row: string[]): string =>
     row.map((cell, index) => cell.padEnd(widths[index] ?? 0)).join('  ').trimEnd();
   process.stdout.write([format(header), ...rows.map(format)].join('\n') + '\n');
+}
+
+function truncateText(value: string, maxLength = 60): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+}
+
+function printJdRequirementList(target: TargetJob, set: JdRequirementSet): void {
+  const requirements = set.requirements;
+  if (requirements.length === 0) {
+    process.stdout.write('(no JD requirements; run `jd parse <targetJobId>`)\n');
+    return;
+  }
+  const header = ['ID', 'CATEGORY', 'PRIORITY', 'STATUS', 'CONF', 'STATEMENT'];
+  const rows = requirements.map((requirement) => [
+    requirement.id,
+    requirement.category,
+    requirement.priority,
+    requirement.status,
+    requirement.confidence.toFixed(2),
+    truncateText(requirement.statement)
+  ]);
+  const widths = header.map((label, index) =>
+    Math.max(label.length, ...rows.map((row) => (row[index] ?? '').length))
+  );
+  const format = (row: string[]): string =>
+    row.map((cell, index) => cell.padEnd(widths[index] ?? 0)).join('  ').trimEnd();
+  process.stdout.write([format(header), ...rows.map(format)].join('\n') + '\n');
+  if (isJdRequirementSetStale(set, target)) {
+    process.stdout.write(
+      `! stale: requirements were parsed from rawJdHash ${set.rawJdHash}; current target job is ${target.rawJdHash}; re-run \`jd parse\`\n`
+    );
+  }
+}
+
+function printJdRequirementDetail(command: Command, requirement: JdRequirement): void {
+  if (rootOptions(command).json) {
+    printValue(command, requirement);
+    return;
+  }
+  process.stdout.write(
+    [
+      `id:              ${requirement.id}`,
+      `targetJobId:     ${requirement.targetJobId}`,
+      `category:        ${requirement.category}`,
+      `priority:        ${requirement.priority}`,
+      `status:          ${requirement.status}`,
+      `confidence:      ${requirement.confidence}`,
+      `sourceRawJdHash: ${requirement.sourceRawJdHash}`,
+      `quoteRange:      ${requirement.quoteRange.start}..${requirement.quoteRange.end}`,
+      `statement:       ${requirement.statement}`,
+      `rawQuote:        ${requirement.rawQuote}`
+    ].join('\n') + '\n'
+  );
 }
 
 interface RawJdOptions {
@@ -599,6 +663,131 @@ target
         changed.push('updatedAt');
       }
       printTargetJobSummary(command, updated, changed);
+    });
+  });
+
+const jd = program
+  .command('jd')
+  .description('JD Requirement Parser 与 review（只理解目标岗位文本，不匹配职业证据）');
+
+jd
+  .command('parse <targetJobId>')
+  .description('基于完整 raw JD 重新解析 requirements；结果默认 parsed，需要人工确认')
+  .action(async (targetJobId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const target = runtime.repository.getTargetJob(targetJobId);
+      if (!target) {
+        throw new Error(`TargetJob not found: ${targetJobId}`);
+      }
+      const parser = new DeterministicJdRequirementParser();
+      const set = parseJdRequirementsForTarget(target, runtime.repository, parser);
+      if (rootOptions(command).json) {
+        printValue(command, {
+          targetJobId: set.targetJobId,
+          rawJdHash: set.rawJdHash,
+          parser: parser.id,
+          parserVersion: parser.version,
+          requirements: set.requirements.length
+        });
+        return;
+      }
+      process.stdout.write(
+        [
+          `target:    ${target.id}`,
+          `parser:    ${parser.id} (v${parser.version})`,
+          `rawJdHash: ${set.rawJdHash}`,
+          `parsed:    ${set.requirements.length} requirement(s)`,
+          'status:    parsed（需人工 confirm 后才能进入正式匹配）'
+        ].join('\n') + '\n'
+      );
+    });
+  });
+
+jd
+  .command('list <targetJobId>')
+  .description('列出 requirements、review 状态与 stale 提醒')
+  .action(async (targetJobId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const target = runtime.repository.getTargetJob(targetJobId);
+      if (!target) {
+        throw new Error(`TargetJob not found: ${targetJobId}`);
+      }
+      const set = getJdRequirementSet(target, runtime.repository);
+      if (rootOptions(command).json) {
+        printValue(command, set);
+        return;
+      }
+      printJdRequirementList(target, set);
+    });
+  });
+
+jd
+  .command('show <requirementId>')
+  .description('显示单条 requirement 完整信息（含 rawQuote 与定位）')
+  .action(async (requirementId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const requirement = runtime.repository.getJdRequirement(requirementId);
+      if (!requirement) {
+        throw new Error(`JdRequirement not found: ${requirementId}`);
+      }
+      printJdRequirementDetail(command, requirement);
+    });
+  });
+
+jd
+  .command('confirm <requirementId>')
+  .description('确认 requirement；只有 confirmed 才允许进入正式匹配输入')
+  .action(async (requirementId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const requirement = runtime.repository.getJdRequirement(requirementId);
+      if (!requirement) {
+        throw new Error(`JdRequirement not found: ${requirementId}`);
+      }
+      const confirmed = confirmJdRequirement(requirement);
+      runtime.repository.saveJdRequirement(confirmed);
+      printValue(command, confirmed);
+    });
+  });
+
+jd
+  .command('reject <requirementId>')
+  .description('拒绝误解析的 requirement；不会影响任何事实数据')
+  .action(async (requirementId: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const requirement = runtime.repository.getJdRequirement(requirementId);
+      if (!requirement) {
+        throw new Error(`JdRequirement not found: ${requirementId}`);
+      }
+      const rejected = rejectJdRequirement(requirement);
+      runtime.repository.saveJdRequirement(rejected);
+      printValue(command, rejected);
+    });
+  });
+
+jd
+  .command('edit <requirementId>')
+  .description('修正 category / priority / statement；rawQuote 与定位不可编辑')
+  .option('--category <category>', 'responsibility | skill | experience | education | management | domain | other')
+  .option('--priority <priority>', 'required | preferred | unspecified')
+  .option('--statement <text>', '修正后的规范化描述')
+  .action(async (requirementId: string, options: Record<string, string>, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const requirement = runtime.repository.getJdRequirement(requirementId);
+      if (!requirement) {
+        throw new Error(`JdRequirement not found: ${requirementId}`);
+      }
+      const patch: JdRequirementEditPatch = {
+        ...(options.category !== undefined
+          ? { category: options.category as JdRequirementEditPatch['category'] }
+          : {}),
+        ...(options.priority !== undefined
+          ? { priority: options.priority as JdRequirementEditPatch['priority'] }
+          : {}),
+        ...(options.statement !== undefined ? { statement: options.statement } : {})
+      };
+      const edited = editJdRequirement(requirement, patch);
+      runtime.repository.saveJdRequirement(edited);
+      printValue(command, edited);
     });
   });
 

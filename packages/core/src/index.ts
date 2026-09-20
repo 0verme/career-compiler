@@ -5,4 +5,5 @@ export * from './achievements.js';
 export * from './migration.js';
 export * from './pipeline.js';
 export * from './target-job.js';
+export * from './jd-requirement.js';
 export * from './compilation.js';
