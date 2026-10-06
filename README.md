@@ -65,6 +65,7 @@ CLI 使用前先运行 `pnpm build`：
 ```bash
 career-compiler add "我负责一个18人的湖仓团队，上游180多个系统，下游120多个系统。"
 career-compiler facts list candidate
+career-compiler facts show <fact-id>
 career-compiler facts confirm <fact-id>
 career-compiler target add --title "Data Platform Lead" --company "某券商" --jd-file jd.md
 career-compiler target list
