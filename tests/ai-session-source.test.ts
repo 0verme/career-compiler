@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -214,9 +214,11 @@ describe('AI session source', () => {
     await git(main, ['worktree', 'add', '-b', 'wt-b', worktreeB]);
 
     const directories = [main, worktreeA, worktreeB];
+    // Git may return /private/var paths for worktrees while tmpdir() uses /var on macOS.
+    // Resolve symlinks so every session receives the same physical common directory.
     const commonDirs = await Promise.all(
       directories.map(async (directory) =>
-        resolve(directory, await git(directory, ['rev-parse', '--git-common-dir']))
+        realpath(resolve(directory, await git(directory, ['rev-parse', '--git-common-dir'])))
       )
     );
     expect(new Set(commonDirs).size).toBe(1);
