@@ -1104,6 +1104,44 @@ compile
     });
   });
 
+function printFactDetail(command: Command, fact: CareerFact): void {
+  if (rootOptions(command).json) {
+    printValue(command, fact);
+    return;
+  }
+  const lines = [
+    `id:             ${fact.id}`,
+    `type:           ${fact.type}`,
+    `status:         ${fact.status}`,
+    `confidence:     ${fact.confidence}`,
+    `createdAt:      ${fact.createdAt}`,
+    `updatedAt:      ${fact.updatedAt}`
+  ];
+  if (fact.canonicalKey !== undefined) {
+    lines.push(`canonicalKey:   ${fact.canonicalKey}`);
+  }
+  if (fact.confirmedAt !== undefined) {
+    lines.push(`confirmedAt:    ${fact.confirmedAt}`);
+  }
+  if (fact.confirmedBy !== undefined) {
+    lines.push(`confirmedBy:    ${fact.confirmedBy}`);
+  }
+  if (fact.supersedesFactId !== undefined) {
+    lines.push(`supersedes:     ${fact.supersedesFactId}`);
+  }
+  lines.push(`statement:      ${fact.statement}`);
+  lines.push(`normalizedData: ${JSON.stringify(fact.normalizedData)}`);
+  if (fact.evidenceRefs.length === 0) {
+    lines.push('evidenceRefs:   (none)');
+  } else {
+    lines.push('evidenceRefs:');
+    for (const ref of fact.evidenceRefs) {
+      lines.push(`  - ${ref.evidenceId} (${ref.relation}, weight ${ref.weight})`);
+    }
+  }
+  process.stdout.write(`${lines.join('\n')}\n`);
+}
+
 const facts = program.command('facts').description('查看和确认 CareerFacts');
 facts
   .command('list [status]')
@@ -1111,6 +1149,19 @@ facts
   .action(async (status: string | undefined, _options: unknown, command: Command) => {
     await withRuntime(command, async (runtime) => {
       printValue(command, runtime.repository.listFacts(parseStatus(status)));
+    });
+  });
+
+facts
+  .command('show <id>')
+  .description('显示单个 CareerFact 完整信息（含 normalizedData 与 evidence provenance）')
+  .action(async (id: string, _options: unknown, command: Command) => {
+    await withRuntime(command, async (runtime) => {
+      const fact = runtime.repository.getFact(id);
+      if (!fact) {
+        throw new Error(`CareerFact not found: ${id}`);
+      }
+      printFactDetail(command, fact);
     });
   });
 
